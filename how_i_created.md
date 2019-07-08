@@ -1,0 +1,1 @@
+- when searching for things using attributes and using xpath, make sure to escape quotes because the attributes and their values are case sensitive, so you have to use the correct quotes when searching, otherwise it will say the value of the attribute is invalid

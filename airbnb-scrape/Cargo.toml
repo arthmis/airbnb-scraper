@@ -1,0 +1,12 @@
+[package]
+name = "airbnb-scrape"
+version = "0.1.0"
+authors = ["lazypassion <25536767+lazypassion@users.noreply.github.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+fantoccini = "0.11.7"
+tokio = "0.1"
+futures = "0.1.14"
