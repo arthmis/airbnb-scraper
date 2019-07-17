@@ -1,20 +1,43 @@
 #![recursion_limit = "128"]
 use fantoccini::error::CmdError;
-use fantoccini::{Client, Locator, Form};
+use fantoccini::{Client, Form, Locator};
 use futures::future::Future;
-use scraper::{Html, Selector};
+use scraper::{ElementRef, Html, Selector};
 // use std::process::Command;
-use std::time::{Duration, Instant};
+use serde_json::json;
 use std::fs;
+use std::time::{Duration, Instant};
 use tokio;
 use tokio::timer::Delay;
-use serde_json::json;
 // for unescaping html
 use htmlescape::decode_html;
+use std::fmt;
 
 enum Date {
     Begin,
     End,
+}
+
+struct HomeListings {
+    home_urls: Vec<String>,
+    home_titles: Vec<String>,
+    is_superhost: Vec<bool>,
+}
+#[derive(Debug)]
+struct HomeListing {
+    pub home_title: String,
+    pub home_url: String,
+    pub superhost: bool,
+}
+
+impl fmt::Display for HomeListing {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Title: {}\nUrl: {}\nSuperhost: {}",
+            self.home_title, self.home_url, self.superhost
+        )
+    }
 }
 
 fn main() {
@@ -27,7 +50,8 @@ fn main() {
     let start_date_aria_label = create_aria_label(22, "July", 2019, "Monday", Date::Begin);
     let end_date_aria_label = create_aria_label(26, "July", 2019, "Friday", Date::End);
     let price_button_xpath = r#"//button[@class="_1i67wnzj" and @aria-haspopup="true" and @aria-expanded="false" and @aria-controls="menuItemComponent-price_range"]"#;
-    let price_apply_button = r#"//button[@class="_b0ybw8s" and @type="button" and @aria-busy="false"]"#;
+    let price_apply_button =
+        r#"//button[@class="_b0ybw8s" and @type="button" and @aria-busy="false"]"#;
 
     let scrape_airbnb = client
         .map_err(|error| unimplemented!("failed to connect to WebDriver: {:?}", error))
@@ -65,23 +89,23 @@ fn main() {
         .and_then(|element| element.click())
         .and_then(move |client| {
             delay_client(client, 4000)
-                .and_then(move |client| client.wait_for_find(Locator::XPath(price_button_xpath.clone())))
+                .and_then(move |client| {
+                    client.wait_for_find(Locator::XPath(price_button_xpath.clone()))
+                })
                 .and_then(|element| element.click())
         })
         .and_then(|client| {
-            delay_client(client, 1500)
-                .and_then(|mut client| {
-                    client.form(Locator::Id("price_filter_min"))
-                        .and_then(|mut form| form.set(Locator::Id("price_filter_min"), "100"))
-                        .and_then(|mut form| form.set(Locator::Id("price_filter_max"), "160"))
-                        .and_then(|form| Ok(form.client()))
-                })
+            delay_client(client, 1500).and_then(|mut client| {
+                client
+                    .form(Locator::Id("price_filter_min"))
+                    .and_then(|mut form| form.set(Locator::Id("price_filter_min"), "100"))
+                    .and_then(|mut form| form.set(Locator::Id("price_filter_max"), "160"))
+                    .and_then(|form| Ok(form.client()))
+            })
         })
         .and_then(move |client| {
             delay_client(client, 1500)
-                .and_then(move |mut client| {
-                    client.find(Locator::XPath(price_apply_button))
-                })
+                .and_then(move |mut client| client.find(Locator::XPath(price_apply_button)))
                 .and_then(|element| element.click())
         })
         // .and_then(|mut client| client.persist().and_then(|_| Ok(client)))
@@ -91,8 +115,8 @@ fn main() {
                 // to get the value of the html after all javascript executes
                 // doesn't retrieve the doctype for some reason(need to investigate)
                 .execute(
-                    "return document.getElementsByTagName('html')[0].innerHTML", 
-                    vec![json!(null)]           
+                    "return document.getElementsByTagName('html')[0].innerHTML",
+                    vec![json!(null)],
                 )
         })
         // .and_then(|mut client| client.source())
@@ -100,7 +124,6 @@ fn main() {
             // geckodriver.kill().expect("Command wasn't running");
             panic!("a WebDriver command failed: {:?}", error);
         });
-
 
     // need to use this with `runtime.block_on() to return the result of an executed future`
     // let mut runtime = tokio::runtime::Runtime::new().expect("Unable to start runtime");
@@ -121,22 +144,58 @@ fn main() {
     // let page_source: String = fs::read_to_string("something.html").unwrap();
     let document = Html::parse_fragment(&page_source);
     let title_selector = Selector::parse(r#"div._1dss1omb"#).expect("couldn't find that selector?");
-    let home_url_selector = Selector::parse(r#"a[data-check-info-section="true"]._1ol0z3h"#).expect("couldn't create <a> selector");
+    let home_url_selector = Selector::parse(r#"a[data-check-info-section="true"]._1ol0z3h"#)
+        .expect("couldn't create <a> selector");
+    // airbnb seems to use different classes for the div surrounding the Superhost span, have
+    // to figure out which ones they are
+    // let superhost_selector = Selector::parse(r#"span._j2qalb2 > span[aria-hidden="true"]"#).expect("not a valid selector for superhost");
+    let superhost_selector =
+        Selector::parse(r#"span._1plk0jz1"#).expect("not a valid selector for superhost");
+    // let superhost_selector_parent = Selector::parse(r#"div._z0s1fl0 > span._1plk0jz1"#).expect("not a valid selector for superhost");
+    let superhost_selector_parent =
+        Selector::parse(r#"div._z0s1fl0"#).expect("not a valid selector for superhost parent");
     // let superhost_selector = Selector::parse(r#"span._j2qalb2"#).expect("couldn't create superhost selector");
-    let mut home_links: Vec<String> = Vec::new();
-    let mut home_titles: Vec<String> = Vec::new();
+    let mut home_listings: Vec<HomeListing> = Vec::new();
 
     for element in document.select(&title_selector) {
-	home_titles.push(decode_html(&element.inner_html()).unwrap());
+        let home_listing = HomeListing {
+            home_title: decode_html(&element.inner_html()).unwrap(),
+            home_url: String::new(),
+            superhost: false,
+        };
+        home_listings.push(home_listing);
     }
 
-    for url in document.select(&home_url_selector) {
-	println!("https://www.airbnb.com{}", url.value().attr("href").unwrap().to_string());
-	home_links.push(format!("https://www.airbnb.com{}", url.value().attr("href").expect("link").to_string()));
-	
+    for (url, home_listing) in document
+        .select(&home_url_selector)
+        .zip(home_listings.iter_mut())
+    {
+        home_listing.home_url = format!(
+            "https://www.airbnb.com{}",
+            url.value().attr("href").expect("link").to_string()
+        );
     }
 
+    for (element, home_listing) in document
+        .select(&superhost_selector_parent)
+        .zip(home_listings.iter_mut())
+    {
+        // have to figure out how to get the inner html to output whether "Superhost"
+        // or not; for now checking whether the second child is a div or span
+        let second_child = *(&element
+            .last_child()
+            .expect("expected second child to be last"));
+        let node = ElementRef::wrap(second_child).unwrap();
+        if node.value().name() == "span" {
+            home_listing.superhost = true;
+        }
+    }
 
+    for listing in home_listings.iter() {
+        // dbg!(listing);
+        println!("{}", listing);
+        println!();
+    }
 
     let client = Client::new("http://localhost:4444");
     let price_apply_span = r#"//span[@data-action="save"]"#;
