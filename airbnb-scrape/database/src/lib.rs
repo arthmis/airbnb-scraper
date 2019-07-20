@@ -7,31 +7,33 @@ use diesel::sqlite::SqliteConnection;
 use dotenv::dotenv;
 use std::env;
 
-pub mod schema;
 pub mod models;
+pub mod schema;
 
 use self::models::*;
 
 pub fn establish_connection() -> SqliteConnection {
     dotenv().ok();
 
-    let database_url = env::var("DATABASE_URL")
-        .expect("DATABASE_URL must be set");
+    let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     SqliteConnection::establish(&database_url)
         .expect(&format!("Error connecting to {}", database_url))
 }
 
 pub fn add_listing(connection: &SqliteConnection, new_listing: NewHomeListing) {
-    use schema::listings;
     use self::schema::listings::dsl::*;
+    use schema::listings;
 
-    diesel::insert_into(listings::table) 
+    diesel::insert_into(listings::table)
         .values(&(new_listing.clone()))
         .execute(connection)
         .expect("Error adding new listing");
 }
 
-pub fn find_listing(connection: &SqliteConnection, listing_url: String) -> Result<HomeListing, diesel::result::Error> {
+pub fn find_listing(
+    connection: &SqliteConnection,
+    listing_url: String,
+) -> Result<HomeListing, diesel::result::Error> {
     use schema::listings;
     use schema::listings::dsl::*;
 

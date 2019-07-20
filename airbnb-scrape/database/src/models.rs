@@ -1,6 +1,6 @@
-use std::fmt;
-use diesel::{Insertable, Queryable};
 use super::schema::listings;
+use diesel::{Insertable, Queryable};
+use std::fmt;
 
 #[derive(Insertable, Clone, Debug)]
 #[table_name = "listings"]
