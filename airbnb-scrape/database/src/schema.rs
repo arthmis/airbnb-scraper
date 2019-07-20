@@ -1,6 +1,6 @@
 table! {
     listings (id) {
-        id -> Nullable<Integer>,
+        id -> Integer,
         title -> Text,
         url -> Text,
         superhost -> Bool,

@@ -2,7 +2,7 @@ use std::fmt;
 use diesel::{Insertable, Queryable};
 use super::schema::listings;
 
-#[derive(Insertable, Clone)]
+#[derive(Insertable, Clone, Debug)]
 #[table_name = "listings"]
 pub struct NewHomeListing<'a> {
     pub title: &'a str,
@@ -10,8 +10,7 @@ pub struct NewHomeListing<'a> {
     pub superhost: bool,
 }
 
-// #[derive(Debug)] 
-#[derive(Queryable)]
+#[derive(Queryable, Debug, Clone)]
 pub struct HomeListing {
     pub id: i32,
     pub title: String,

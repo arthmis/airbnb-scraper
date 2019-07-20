@@ -116,10 +116,21 @@ fn main() {
         .and_then(|client| {
             delay_client(client, 1500).and_then(|mut client| {
                 client
-                    .form(Locator::Id("price_filter_min"))
-                    .and_then(|mut form| form.set(Locator::Id("price_filter_min"), "100"))
-                    .and_then(|mut form| form.set(Locator::Id("price_filter_max"), "160"))
-                    .and_then(|form| Ok(form.client()))
+                    .find(Locator::Id("price_filter_min"))
+                    .and_then(|mut element| {
+                        element.clear();
+                        element.send_keys("100");
+                        element.client().find(Locator::Id("price_filter_max"))
+                    })
+                    .and_then(|mut element| {
+                        element.clear();
+                        element.send_keys("160");
+                        Ok(element.client())
+                    })
+                    // .form(Locator::Id("price_filter_min"))
+                    // .and_then(|mut form| form.set(Locator::Id("price_filter_min"), "100"))
+                    // .and_then(|mut form| form.set(Locator::Id("price_filter_max"), "160"))
+                    // .and_then(|form| Ok(form.client()))
             })
         })
         .and_then(move |client| {
@@ -237,6 +248,15 @@ fn main() {
     for listing in home_listings {
         println!("{}", listing);
         println!();
+    }
+
+    let test_url = String::from("https://www.airbnb.com/rooms/14240737?location=San%20Francisco%2C%20CA&check_in=2019-07-22&check_out=2019-07-26");
+    match find_listing(&connection, test_url) {
+        Ok(result) => println!("title: {}\nurl : {}", result.title, result.url),
+        Err(error) => match error {
+            diesel::NotFound => println!("error: {}", error),
+            _ => panic!("shouldn't have any other error besides NotFound"),
+        }
     }
 
 

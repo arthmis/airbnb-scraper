@@ -1,5 +1,5 @@
-#[macro_use]
 // have to add this to make sure diesel works correctly in 2018 edition
+#[macro_use]
 extern crate diesel;
 
 use diesel::prelude::*;
@@ -23,6 +23,7 @@ pub fn establish_connection() -> SqliteConnection {
 
 pub fn add_listing(connection: &SqliteConnection, new_listing: NewHomeListing) {
     use schema::listings;
+    use self::schema::listings::dsl::*;
 
     diesel::insert_into(listings::table) 
         .values(&(new_listing.clone()))
@@ -30,4 +31,11 @@ pub fn add_listing(connection: &SqliteConnection, new_listing: NewHomeListing) {
         .expect("Error adding new listing");
 }
 
-// TODO add update, delete and find
+pub fn find_listing(connection: &SqliteConnection, listing_url: String) -> Result<HomeListing, diesel::result::Error> {
+    use schema::listings;
+    use schema::listings::dsl::*;
+
+    listings
+        .filter(url.eq(listing_url))
+        .get_result::<HomeListing>(connection)
+}
