@@ -11,7 +11,7 @@ from selenium.webdriver.common.action_chains import ActionChains
 # options = Options()
 # # options.add_argument('-headless')
 # browser = Firefox(executable_path='geckodriver', options=options)
-# browser.implicitly_wait(20)
+# browser.implicitly_wait(30)
 # wait = WebDriverWait(browser, timeout=15)
 # actions = ActionChains(browser)
 # browser.get("https://www.airbnb.com/")
@@ -29,7 +29,7 @@ from selenium.webdriver.common.action_chains import ActionChains
 # first_location_option.click()
 #
 # # find and click start date
-# start_date_xpath = '//td[@aria-label="Choose {}, {} {}, {} as your {} date. It\'s available."]'.format("Friday", "July", 26, 2019, "start")
+# start_date_xpath = '//td[@aria-label="Choose {}, {} {}, {} as your {} date. It\'s available."]'.format("Tuesday", "July", 30, 2019, "start")
 # start_date = wait.until(expected.visibility_of(browser.find_element_by_xpath(
 #    start_date_xpath
 # )), "could not get first date")
@@ -74,11 +74,7 @@ from selenium.webdriver.common.action_chains import ActionChains
 #     save_type_of_place_button = wait.until(expected.visibility_of(browser.find_element_by_xpath(save_type_of_place_button_xpath)), "couldn't find save type of place button")
 #     save_type_of_place_button.click()
 #
-#
-#
-#
-#
-#
+# # click on price filter button
 # price_button = wait.until(expected.visibility_of(browser.find_element(
 #     By.XPATH,
 #     r'//button[@aria-controls="menuItemComponent-price_range"]')))
@@ -86,37 +82,73 @@ from selenium.webdriver.common.action_chains import ActionChains
 # actions.perform()
 #
 # # change minimum price
-# price_filter_min = wait.until(expected.visibility_of(browser.find_element_by_id("price_filter_min")))
-# price_filter_min.send_keys(Keys.BACK_SPACE)
-# price_filter_min.send_keys(Keys.BACK_SPACE)
+# # price_filter_min = wait.until(expected.visibility_of(browser.find_element_by_id("price_filter_min")))
+# price_filter_min = browser.find_element_by_id("price_filter_min")
+# for i in range(len(price_filter_min.get_attribute("value"))):
+#     price_filter_min.send_keys(Keys.BACK_SPACE)
+#
 # price_filter_min.send_keys("100")
 #
 # # change max price
-# price_filter_max = wait.until(expected.visibility_of(browser.find_element_by_id("price_filter_max")))
-# price_filter_max.send_keys(Keys.BACK_SPACE)
-# price_filter_max.send_keys(Keys.BACK_SPACE)
-# price_filter_max.send_keys(Keys.BACK_SPACE)
-# price_filter_max.send_keys(Keys.BACK_SPACE)
-# price_filter_max.send_keys(Keys.BACK_SPACE)
+# # price_filter_max = wait.until(expected.visibility_of(browser.find_element_by_id("price_filter_max")))
+# price_filter_max = browser.find_element_by_id("price_filter_max")
+# for i in range(len(price_filter_max.get_attribute("value"))):
+#     price_filter_max.send_keys(Keys.BACK_SPACE)
+#
 # price_filter_max.send_keys("200")
 #
 # apply_price = wait.until(expected.visibility_of(browser.find_element_by_xpath('//button[@class="_b0ybw8s" and @type="button" and @aria-busy="false"]')))
 # apply_price.click()
 #
-# page_source = browser.page_source
-# print(page_source)
-
+# # wait is necessary so that it gives the browser time to load the results before
+# # getting the page_source
+# import time
+# time.sleep(20)
+#
+# # page_source = browser.execute_script("return document.getElementsByTagName('html')[0].innerHTML;")
+# page_source = browser.execute_script("return new XMLSerializer().serializeToString(document);")
+#
+# source = browser.page_source
+#
 # file = open("test.html", "w")
-# file.write(page_source)
+# file.write(source)
 # file.close()
 
 
 
 
 from bs4 import BeautifulSoup
-html = open("test.html")
-soup = BeautifulSoup(html, 'html.parser')
+import html5lib
+source = open("test.html")
+# soup = BeautifulSoup(html, 'html.parser')
+soup = BeautifulSoup(source, 'html5lib')
+source.close()
 
-# print(soup.prettify())
-# print(soup.find("div", id='listing-555596'))
-# print(soup.find("div"))
+first_listings = soup.find_all("div", class_="_1dss1omb")
+
+# format the listing names
+for i, listings in enumerate(first_listings):
+    first_listings[i] = first_listings[i].text
+
+listing_urls = soup.find_all("a", attrs={"data-check-info-section": "true", "class":"_1ol0z3h"})
+
+# format urls for the listings 
+for i, url in enumerate(listing_urls):
+    listing_urls[i] = "https://www.airbnb.com{}".format(listing_urls[i]['href'])
+
+# find which listings are from a superhost
+superhosts = soup.find_all("div", class_="_aq2oyh")
+for i, thing in enumerate(superhosts):
+    if len(thing.contents) > 1:
+        superhosts[i] = True
+    else:
+        superhosts[i] = False
+
+
+
+# for i, host in enumerate(superhosts):
+#     print("{}: {}".format(i, host))
+# for i, listing in enumerate(first_listings):
+#     print("{}: {}".format(i, listing))
+# for i, url in enumerate(urls):
+#     print("{}: {}".format(i, url))
