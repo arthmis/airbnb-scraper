@@ -144,11 +144,77 @@ for i, thing in enumerate(superhosts):
     else:
         superhosts[i] = False
 
+class Listing:
+    def __init__(self, title, url, superhost):
+        self.title = title
+        self.url = url
+        self.superhost = superhost
+    def __str__(self):
+        return "title: {}\nurl: {}\nsuperhost: {}".format(self.title, self.url, self.superhost)
 
+listings = []
+for title, url, superhost in zip(first_listings, listing_urls, superhosts):
+    listings.append(Listing(title, url, superhost))
 
+# for listing in listings:
+#     print(listing)
 # for i, host in enumerate(superhosts):
 #     print("{}: {}".format(i, host))
 # for i, listing in enumerate(first_listings):
 #     print("{}: {}".format(i, listing))
 # for i, url in enumerate(urls):
 #     print("{}: {}".format(i, url))
+
+import sqlite3
+from sqlite3 import Error
+
+def create_connection(database):
+    try:
+        connection = sqlite3.connect(database)
+        print("Connection successful...\n{}".format(sqlite3.version))
+        return connection
+    except Error as error:
+        print(error)
+
+    return None
+
+def create_table(connection, sql_statement):
+    try:
+        cursor = connection.cursor()
+        cursor.execute(sql_statement)
+    except Error as error:
+        print(error)
+
+def add_listing(connection, listing):
+    statement = """
+        INSERT INTO listings (title, url, superhost)
+        VALUES(?,?,?)
+    """
+    cursor = connection.cursor()
+    cursor.execute(statement, (listing.title, listing.url, listing.superhost))
+    connection.commit()
+    return cursor.lastrowid
+
+def find_listing_by_title(connection, title):
+    cursor = connection.cursor()
+    cursor.execute('SELECT * FROM listings WHERE title=?', (title,))
+    print(cursor.fetchone()[1])
+
+connection = create_connection("listings.db")
+
+create_table_sql = """
+CREATE TABLE IF NOT EXISTS listings (
+    id integer PRIMARY KEY,
+    title text NOT NULL,
+    url text NOT NULL,
+    superhost boolean NOT NULL DEFAULT 'f'
+)
+"""
+
+# create_table(connection, create_table_sql)
+for listing in listings:
+    add_listing(connection, listing)
+
+find_listing_by_title(connection, "Artistic Studio 1BR 1BA Near SF, SFO, SFSU + Beach")
+
+connection.close()
