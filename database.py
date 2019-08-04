@@ -34,14 +34,14 @@ def add_listing(connection, listing):
     else:
         return duplicate[0]
 
-def find_listing_by_title(connection, title):
-    cursor = connection.cursor()
-    cursor.execute('SELECT * FROM listings WHERE title=?', (title,))
-    listing = cursor.fetchone()
-    if listing is None:
-        return None
-    else:
-        return listing
+# def find_listing_by_title(connection, title):
+#     cursor = connection.cursor()
+#     cursor.execute('SELECT * FROM listings WHERE title=?', (title,))
+#     listing = cursor.fetchone()
+#     if listing is None:
+#         return None
+#     else:
+#         return listing
 
 
 def find_listing_by_url(connection, url):
@@ -53,6 +53,14 @@ def find_listing_by_url(connection, url):
     else:
         return listing
 
+def find_all_listings(connection):
+    cursor = connection.cursor()
+    cursor.execute('SELECT * FROM listings LIMIT 10')
+    listings = cursor.fetchall()
+    if len(listings) == 0:
+        return None
+    else:
+        return listings
 
 create_table_sql = """
 CREATE TABLE IF NOT EXISTS listings (

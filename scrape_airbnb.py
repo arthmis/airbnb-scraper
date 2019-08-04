@@ -171,65 +171,64 @@ import time
 
 
 
-from bs4 import BeautifulSoup
-import html5lib
-source = open("test.html")
+# from bs4 import BeautifulSoup
+# import html5lib
+# source = open("test.html")
 # soup = BeautifulSoup(html, 'html.parser')
-soup = BeautifulSoup(source, 'html5lib')
-source.close()
-
-first_listings = soup.find_all("div", class_="_1dss1omb")
-
-# format the listing names
-for i, listings in enumerate(first_listings):
-    first_listings[i] = first_listings[i].text
-
-listing_urls = soup.find_all("a", attrs={"data-check-info-section": "true", "class":"_1ol0z3h"})
-
-# format urls for the listings 
-for i, url in enumerate(listing_urls):
-    listing_urls[i] = "https://www.airbnb.com{}".format(listing_urls[i]['href'])
-
-# find which listings are from a superhost
-superhosts = soup.find_all("div", class_="_aq2oyh")
-for i, thing in enumerate(superhosts):
-    if len(thing.contents) > 1:
-        superhosts[i] = True
-    else:
-        superhosts[i] = False
-
-class Listing:
-    def __init__(self, title, url, superhost):
-        self.title = title
-        self.url = url
-        self.superhost = superhost
-    def __str__(self):
-        return "title: {}\nurl: {}\nsuperhost: {}".format(self.title, self.url, self.superhost)
-
-listings = []
-for title, url, superhost in zip(first_listings, listing_urls, superhosts):
-    listings.append(Listing(title, url, superhost))
-
+# # soup = BeautifulSoup(source, 'html5lib')
+# source.close()
+#
+# first_listings = soup.find_all("div", class_="_1dss1omb")
+#
+# # format the listing names
+# for i, listings in enumerate(first_listings):
+#     first_listings[i] = first_listings[i].text
+#
+# listing_urls = soup.find_all("a", attrs={"data-check-info-section": "true", "class":"_1ol0z3h"})
+#
+# # format urls for the listings 
+# for i, url in enumerate(listing_urls):
+#     listing_urls[i] = "https://www.airbnb.com{}".format(listing_urls[i]['href'])
+#
+# # find which listings are from a superhost
+# superhosts = soup.find_all("div", class_="_aq2oyh")
+# for i, thing in enumerate(superhosts):
+#     if len(thing.contents) > 1:
+#         superhosts[i] = True
+#     else:
+#         superhosts[i] = False
+#
+# class Listing:
+#     def __init__(self, title, url, superhost):
+#         self.title = title
+#         self.url = url
+#         self.superhost = superhost
+#     def __str__(self):
+#         return "title: {}\nurl: {}\nsuperhost: {}".format(self.title, self.url, self.superhost)
+#
+# listings = []
+# for title, url, superhost in zip(first_listings, listing_urls, superhosts):
+#     listings.append(Listing(title, url, superhost))
+#
+# # for listing in listings:
+# #     print(listing)
+# # for i, host in enumerate(superhosts):
+# #     print("{}: {}".format(i, host))
+# # for i, listing in enumerate(first_listings):
+# #     print("{}: {}".format(i, listing))
+# # for i, url in enumerate(urls):
+# #     print("{}: {}".format(i, url))
+#
+# import sqlite3
+# from sqlite3 import Error
+# import database
+#
+# connection = database.create_connection("listings.db")
+#
+# database.create_table(connection, database.create_table_sql)
 # for listing in listings:
-#     print(listing)
-# for i, host in enumerate(superhosts):
-#     print("{}: {}".format(i, host))
-# for i, listing in enumerate(first_listings):
-#     print("{}: {}".format(i, listing))
-# for i, url in enumerate(urls):
-#     print("{}: {}".format(i, url))
+#     database.add_listing(connection, listing)
+#
+# connection.close()
 
-import sqlite3
-from sqlite3 import Error
-import database
-
-connection = database.create_connection("listings.db")
-
-database.create_table(connection, database.create_table_sql)
-for listing in listings:
-    database.add_listing(connection, listing)
-
-# database.find_listing_by_title(connection, "Artistic Studio 1BR 1BA Near SF, SFO, SFSU + Beach")
-# print(database.find_listing_by_url(connection, "https://www.airbnb.com/rooms/13661411?location=San%20Francisco%2C%20&check_in=2019-07-30&check_out=2019-07-31&previous_page_section_name=1000"))
-
-connection.close()
+import slack_bot
