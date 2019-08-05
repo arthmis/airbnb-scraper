@@ -1,9 +1,15 @@
 import slack
 from slack import RTMClient
 import os
-import time
 import database
+from dotenv import load_dotenv
+import toml
 
+config_file = open("config.toml", "r")
+config = toml.loads(config_file.read())
+config_file.close()
+
+load_dotenv(verbose=True)
 
 BOT_TOKEN = os.environ['BOT_TOKEN']
 slack_client = slack.WebClient(BOT_TOKEN)
