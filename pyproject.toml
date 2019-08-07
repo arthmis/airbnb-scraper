@@ -11,6 +11,8 @@ black = "19.3b0"
 beautifulsoup4 = "4.8.0"
 selenium = "3.141.0"
 pylint = "^2.3"
+slackclient = "2.1.0"
+python-dotenv = "0.10.3"
 
 [tool.poetry.dev-dependencies]
 

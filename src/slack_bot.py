@@ -6,19 +6,19 @@ from dotenv import load_dotenv
 import tomlkit as toml
 from datetime import date
 
-class Listing:
-    def __init__(self, title, url, superhost):
-        self.title = title
-        self.url = url
-        self.superhost = superhost
-    def __str__(self):
-        return "title: {}\nurl: {}\nsuperhost: {}".format(self.title, self.url, self.superhost)
+# class Listing:
+#     def __init__(self, title, url, superhost):
+#         self.title = title
+#         self.url = url
+#         self.superhost = superhost
+#     def __str__(self):
+#         return "title: {}\nurl: {}\nsuperhost: {}".format(self.title, self.url, self.superhost)
 
-load_dotenv(verbose=True)
 
-BOT_TOKEN = os.environ["BOT_TOKEN"]
-slack_client = slack.WebClient(BOT_TOKEN)
-
+# load_dotenv(verbose=True)
+#
+# BOT_TOKEN = os.environ["BOT_TOKEN"]
+# slack_client = slack.WebClient(BOT_TOKEN)
 
 @RTMClient.run_on(event="message")
 def respond_message(**payload):
@@ -81,7 +81,7 @@ def format_listing(listing):
             "text": "<{}|{}>\n{}".format(listing[1], listing[0], listing[2])
         }
     }
-    return display_format 
+    return display_format
 
 
 def show_dates(data):
@@ -261,5 +261,16 @@ def read_toml(toml_path):
     return toml_data
 
 
-rtm_client = RTMClient(token=BOT_TOKEN)
-rtm_client.start()
+# rtm_client = RTMClient(token=BOT_TOKEN)
+# rtm_client.start()
+
+if __name__ == "__main__":
+    print("executing slack bot")
+
+    load_dotenv(verbose=True)
+
+    BOT_TOKEN = os.environ["BOT_TOKEN"]
+    slack_client = slack.WebClient(BOT_TOKEN)
+
+    rtm_client = RTMClient(token=BOT_TOKEN)
+    rtm_client.start()
