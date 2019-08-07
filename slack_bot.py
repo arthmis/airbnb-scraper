@@ -6,116 +6,142 @@ from dotenv import load_dotenv
 import tomlkit as toml
 from datetime import date
 
+class Listing:
+    def __init__(self, title, url, superhost):
+        self.title = title
+        self.url = url
+        self.superhost = superhost
+    def __str__(self):
+        return "title: {}\nurl: {}\nsuperhost: {}".format(self.title, self.url, self.superhost)
+
 load_dotenv(verbose=True)
 
-BOT_TOKEN = os.environ['BOT_TOKEN']
+BOT_TOKEN = os.environ["BOT_TOKEN"]
 slack_client = slack.WebClient(BOT_TOKEN)
 
 
 @RTMClient.run_on(event="message")
 def respond_message(**payload):
-    data = payload['data']
-    if '@ULQA3K1H8' in data['text']:
-        if 'change location' in data['text']:
+    data = payload["data"]
+    if "@ULQA3K1H8" in data["text"]:
+        if "change location" in data["text"]:
             change_location(data)
-        elif 'show dates' in data['text']:
+        elif "show dates" in data["text"]:
             show_dates(data)
-        elif "change start date" in data['text']:
+        elif "change start date" in data["text"]:
             change_start_date(data)
-        elif "change end date" in data['text']:
+        elif "change end date" in data["text"]:
             change_end_date(data)
-        elif 'help' in data['text']:
+        elif "help" in data["text"]:
             help_prompt()
-        elif 'listings' in data['text']:
+        elif "listings" in data["text"]:
             show_listings(data)
         # elif 'change min price' in data['text']:
         #     change_min_price(data)
         # elif 'change max price' in data['text']:
         #     change_max_price(data)
-        elif 'change prices' in data['text']:
+        elif "change prices" in data["text"]:
             change_prices(data)
-        elif 'show prices' in data['text']:
+        elif "show prices" in data["text"]:
             show_price_range()
+
 
 def show_listings(data):
     connection = database.create_connection("listings.db")
     listings = database.find_all_listings(connection)
-    output = ""
+    output = []
     if listings is None:
-        output = "No listings have been found. Check logs for potential errors."
+        output = output.append(
+            {
+                "type": "mrkdwn",
+                "text": "No listings have been found. Check logs for potential errors."
+            }
+        )
     else:
-        for listing in listings:
+        for i in range(len(listings)):
             superhost_status = ""
-            if listing[3] == 1:
+
+            if listings[i][3] == 1:
                 superhost_status = "Superhost"
             else:
-                superhost_status= "Non Superhost"
-            output += '{}\n{}\n{}\n\n'.format(listing[1], listing[2], superhost_status)
+                superhost_status = "Non Superhost"
+
+            output.append(format_listing((listings[i][1], listings[i][2], superhost_status)))
 
     connection.close()
-    response = slack_client.chat_postMessage(
-        channel='#general',
-        text=output
-    )
+    response = slack_client.chat_postMessage(channel="#general", blocks=output)
     assert response["ok"]
+
+# uses slack's block styling to format a listing
+def format_listing(listing):
+    display_format = {
+        "type": "section",
+        "text": {
+            "type": "mrkdwn",
+            "text": "<{}|{}>\n{}".format(listing[1], listing[0], listing[2])
+        }
+    }
+    return display_format 
+
 
 def show_dates(data):
     config = read_toml("config.toml")
     response = slack_client.chat_postMessage(
         channel="#general",
-        text="The current start date is: {}\nThe current end date is: {}".format(config['start_date'], config['end_date'])
+        text="The current start date is: {}\nThe current end date is: {}".format(
+            config["start_date"], config["end_date"]
+        ),
     )
+
 
 def change_start_date(data):
     config = read_toml("config.toml")
-    new_start_date = data['text'].split(' ')[4]
+    new_start_date = data["text"].split(" ")[4]
     try:
         new_date = date.fromisoformat(new_start_date)
-        config['start_date'] = new_start_date
+        config["start_date"] = new_start_date
         new_config = toml.dumps(config)
         write_toml(new_config, "config.toml")
         response = slack_client.chat_postMessage(
-            channel="#general",
-            text="Date changed to {}".format(new_start_date)
+            channel="#general", text="Date changed to {}".format(new_start_date)
         )
     except ValueError as error:
         response = slack_client.chat_postMessage(
-            channel="#general",
-            text="{}\nFormat should be yyyy-mm-dd.".format(error)
+            channel="#general", text="{}\nFormat should be yyyy-mm-dd.".format(error)
         )
+
 
 def change_end_date(data):
     config = read_toml("config.toml")
-    new_end_date = data['text'].split(' ')[4]
+    new_end_date = data["text"].split(" ")[4]
     try:
         new_date = date.fromisoformat(new_end_date)
-        config['end_date'] = new_end_date
+        config["end_date"] = new_end_date
         new_config = toml.dumps(config)
         write_toml(new_config, "config.toml")
         response = slack_client.chat_postMessage(
-            channel="#general",
-            text="Date changed to {}".format(new_end_date)
+            channel="#general", text="Date changed to {}".format(new_end_date)
         )
     # need to write better error message for this(date is out of range or wrong formatting)
     except ValueError as error:
         response = slack_client.chat_postMessage(
-            channel="#general",
-            text="{}\nFormat should be yyyy-mm-dd.".format(error)
+            channel="#general", text="{}\nFormat should be yyyy-mm-dd.".format(error)
         )
+
 
 def change_location(data):
     config = read_toml("config.toml")
-    new_location = data['text'].split('location')[1].strip()
-    config['location'] = new_location
+    new_location = data["text"].split("location")[1].strip()
+    config["location"] = new_location
     write_toml(toml.dumps(config), "config.toml")
     response = slack_client.chat_postMessage(
-        channel="#general",
-        text="Location changed to {}".format(new_location)
+        channel="#general", text="Location changed to {}".format(new_location)
     )
+
 
 def change_prices(data):
     config = read_toml("config.toml")
-    prices = data['text'].split('prices')[1]
+    prices = data["text"].split("prices")[1]
     # checks if user entered the right number of inputs
     try:
         new_min_price = prices.split()[0]
@@ -124,9 +150,9 @@ def change_prices(data):
         print(error + " while handling change prices event")
         response = slack_client.chat_postMessage(
             channel="#general",
-            text="The usage for change prices is:\nchange prices [new minimum price] [new maximum price]"
+            text="The usage for change prices is:\nchange prices [new minimum price] [new maximum price]",
         )
-        assert response['ok']
+        assert response["ok"]
         return
 
     try:
@@ -135,10 +161,10 @@ def change_prices(data):
     except ValueError:
         response = slack_client.chat_postMessage(
             channel="#general",
-            text="New minimum price has to be a number: {}".format(new_min_price)
+            text="New minimum price has to be a number: {}".format(new_min_price),
         )
         print("New minimum is not a float")
-        assert response['ok']
+        assert response["ok"]
         return
 
     try:
@@ -147,10 +173,10 @@ def change_prices(data):
     except ValueError:
         response = slack_client.chat_postMessage(
             channel="#general",
-            text="New maximum price has to be a number: {}".format(new_max_price)
+            text="New maximum price has to be a number: {}".format(new_max_price),
         )
         print("New maximum is not a float")
-        assert response['ok']
+        assert response["ok"]
         return
 
     # airbnb minimum
@@ -163,14 +189,17 @@ def change_prices(data):
     if new_max_price < new_min_price:
         response = slack_client.chat_postMessage(
             channel="#general",
-            text="Maximum price cannot be lower than minimum price:\ninput min: {}\ninput max: {}".format(new_min_price, new_max_price)
+            text="Maximum price cannot be lower than minimum price:\ninput min: {}\ninput max: {}".format(
+                new_min_price, new_max_price
+            ),
         )
-        assert response['ok']
+        assert response["ok"]
         return
 
-    config['max_price'] = new_max_price
-    config['min_price'] = new_min_price
+    config["max_price"] = new_max_price
+    config["min_price"] = new_min_price
     write_toml(toml.dumps(config), "config.toml")
+
 
 # def change_min_price(data):
 #     config = read_toml("config.toml")
@@ -194,12 +223,13 @@ def change_prices(data):
 #
 def show_price_range():
     config = read_toml("config.toml")
-    min_price = config['min_price']
-    max_price = config['max_price']
+    min_price = config["min_price"]
+    max_price = config["max_price"]
     response = slack_client.chat_postMessage(
         channel="#general",
-        text="Price range is: ${} <--> ${}".format(min_price, max_price)
+        text="Price range is: ${} <--> ${}".format(min_price, max_price),
     )
+
 
 def help_prompt():
     options = ""
@@ -209,25 +239,27 @@ def help_prompt():
     options += "\nchange start date [yyyy-mm-dd]: Changes start date.\n"
     options += "\nchange end date [yyyy-mm-dd]: Changes end date.\n"
     options += "\nchange location [new location]: Changes search location.\n"
-    options += "\nchange prices [new minimum price] [new maximum price]: Changes price range\n"
+    options += (
+        "\nchange prices [new minimum price] [new maximum price]: Changes price range\n"
+    )
     options += "\nshow prices: Show price range\n"
 
-    response = slack_client.chat_postMessage(
-        channel='#general',
-        text=options
-    )
+    response = slack_client.chat_postMessage(channel="#general", text=options)
 
-def write_toml(toml_data: str, file_path: str):
+
+def write_toml(toml_data, file_path):
     file = open(file_path, "w")
     file.write(toml_data)
     file.close()
 
-def read_toml(toml_path: str):
+
+def read_toml(toml_path):
     file = open(toml_path, "r")
     toml_data = toml.parse(file.read())
 
     file.close()
     return toml_data
+
 
 rtm_client = RTMClient(token=BOT_TOKEN)
 rtm_client.start()

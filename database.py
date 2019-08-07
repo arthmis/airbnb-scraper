@@ -1,6 +1,7 @@
 import sqlite3
 from sqlite3 import Error
 
+
 def create_connection(database):
     try:
         connection = sqlite3.connect(database)
@@ -11,12 +12,14 @@ def create_connection(database):
 
     return None
 
+
 def create_table(connection, sql_statement):
     try:
         cursor = connection.cursor()
         cursor.execute(sql_statement)
     except Error as error:
         print(error)
+
 
 # will add listing if it isn't there otherwise
 # returns the rowid of the listing if its a duplicate
@@ -34,6 +37,7 @@ def add_listing(connection, listing):
     else:
         return duplicate[0]
 
+
 # def find_listing_by_title(connection, title):
 #     cursor = connection.cursor()
 #     cursor.execute('SELECT * FROM listings WHERE title=?', (title,))
@@ -46,21 +50,23 @@ def add_listing(connection, listing):
 
 def find_listing_by_url(connection, url):
     cursor = connection.cursor()
-    cursor.execute('SELECT * FROM listings WHERE url=?', (url,))
+    cursor.execute("SELECT * FROM listings WHERE url=?", (url,))
     listing = cursor.fetchone()
     if listing is None:
         return None
     else:
         return listing
 
+
 def find_all_listings(connection):
     cursor = connection.cursor()
-    cursor.execute('SELECT * FROM listings LIMIT 10')
+    cursor.execute("SELECT * FROM listings LIMIT 10")
     listings = cursor.fetchall()
     if len(listings) == 0:
         return None
     else:
         return listings
+
 
 create_table_sql = """
 CREATE TABLE IF NOT EXISTS listings (
