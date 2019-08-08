@@ -6,19 +6,6 @@ from dotenv import load_dotenv
 import tomlkit as toml
 from datetime import date
 
-# class Listing:
-#     def __init__(self, title, url, superhost):
-#         self.title = title
-#         self.url = url
-#         self.superhost = superhost
-#     def __str__(self):
-#         return "title: {}\nurl: {}\nsuperhost: {}".format(self.title, self.url, self.superhost)
-
-
-# load_dotenv(verbose=True)
-#
-# BOT_TOKEN = os.environ["BOT_TOKEN"]
-# slack_client = slack.WebClient(BOT_TOKEN)
 
 @RTMClient.run_on(event="message")
 def respond_message(**payload):
@@ -66,7 +53,7 @@ def show_listings(data):
             else:
                 superhost_status = "Non Superhost"
 
-            output.append(format_listing((listings[i][1], listings[i][2], superhost_status)))
+            output.append(format_listing((listings[i][1], listings[i][2], superhost_status, listings[i][4])))
 
     connection.close()
     response = slack_client.chat_postMessage(channel="#general", blocks=output)
@@ -74,13 +61,27 @@ def show_listings(data):
 
 # uses slack's block styling to format a listing
 def format_listing(listing):
+    url = listing[1]
+    title = listing[0]
+    superhost_status = listing[2]
+    image_url = listing[3]
+
+    # need alternative text whenever displaying an image or nothing will work
+    # use whether listing is guesthouse, apartment, house, etc to be
+    # the alternative text
     display_format = {
         "type": "section",
         "text": {
             "type": "mrkdwn",
-            "text": "<{}|{}>\n{}".format(listing[1], listing[0], listing[2])
-        }
+            "text": "<{}|{}>\n\n{}".format(url, title, superhost_status)
+        },
+        "accessory": {
+            "type": "image",
+            "image_url": image_url,
+            "alt_text": "alt text for image"
+        },
     }
+
     return display_format
 
 
@@ -260,12 +261,8 @@ def read_toml(toml_path):
     file.close()
     return toml_data
 
-
-# rtm_client = RTMClient(token=BOT_TOKEN)
-# rtm_client.start()
-
 if __name__ == "__main__":
-    print("executing slack bot")
+    print("Executing slack bot...")
 
     load_dotenv(verbose=True)
 

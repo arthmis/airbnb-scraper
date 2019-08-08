@@ -15,7 +15,12 @@ slackclient = "2.1.0"
 python-dotenv = "0.10.3"
 
 [tool.poetry.dev-dependencies]
+requests = "^2.22"
 
+[tool.poetry.scripts]
+# slack_bot = ""
+scrape_airbnb = "src/scrape_airbnb:main"
 [build-system]
 requires = ["poetry>=0.12"]
 build-backend = "poetry.masonry.api"
+

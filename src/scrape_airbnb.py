@@ -1,7 +1,6 @@
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver import Firefox
-from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.firefox.options import Options
 from selenium.webdriver.support import expected_conditions as expected
@@ -25,14 +24,15 @@ def crawl_airbnb():
     config = read_toml("config.toml")
     options = Options()
     # options.add_argument('-headless')
-    browser = Firefox(executable_path="geckodriver", options=options)
+    browser = Firefox(executable_path=config['driver_path'], options=options)
     browser.implicitly_wait(30)
     wait = WebDriverWait(browser, timeout=15)
     actions = ActionChains(browser)
     browser.get("https://www.airbnb.com/")
 
+    time.sleep(2)
     # click on search bar to choose location
-    try: 
+    try:
         location_input_element = wait.until(
             expected.visibility_of(
                 browser.find_element_by_id("Koan-magic-carpet-koan-search-bar__input")
@@ -45,7 +45,7 @@ def crawl_airbnb():
         location_input_element.send_keys(config["location"])
     except Exception as error:
         print("send keys to location input element: {}".format(error))
-    time.sleep(2)
+    time.sleep(3)
     # waits until first selection is visible then clicks on it
     # first_location_option = wait.until(expected.visibility_of(browser.find_element_by_id(
     #     "Koan-magic-carpet-koan-search-bar__option-0")),
@@ -56,18 +56,19 @@ def crawl_airbnb():
         )
     except Exception as error:
         print("find first location option: {}".format(error))
+    browser.execute_script('arguments[0].click();', first_location_option)
+    # driver.execute_script('arguments[0].click();', element)
     # first_location_option.click()
-    actions.click(first_location_option)
-    actions.perform()
-    time.sleep(2)
+    # actions.click(first_location_option)
+    # actions.perform()
 
     # TODO make sure start date isn't before current date
     # TODO make sure start date is less than end date
     start_date = date.fromisoformat(config["start_date"])
-    print(start_date)
+    # print(start_date)
 
     end_date = date.fromisoformat(config["end_date"])
-    print(end_date)
+    # print(end_date)
 
     # find month and year on airbnb calendar
     current_month = date.today()
@@ -79,6 +80,7 @@ def crawl_airbnb():
         current_month
     )
     month_and_year = browser.find_element_by_xpath(month_and_year_xpath)
+    time.sleep(3)
 
     next_month_arrow_xpath = '//div[@class="_1h5uiygl" and @aria-label="Move forward to switch to the next month."]'
 
@@ -203,9 +205,11 @@ def crawl_airbnb():
         ),
         "couldn't find price button",
     )
-    # price_button.click()
-    actions.click(price_button)
-    actions.perform()
+    time.sleep(2)
+    price_button.click()
+    # browser.execute_script('arguments[0].click();', price_button)
+    # actions.click(price_button)
+    # actions.perform()
     time.sleep(2)
 
     # change minimum price
@@ -243,22 +247,17 @@ def crawl_airbnb():
     page_source = browser.execute_script(
         "return new XMLSerializer().serializeToString(document);"
     )
-
-#
+    return page_source
 
 from scrape_page import scrape, Listing
+
 if __name__ == "__main__":
     page_source = crawl_airbnb()
     listings = scrape(page_source)
+    print(len(listings))
     print(listings[0])
-    for listing in listings:
-        print(listing)
-    # for i, host in enumerate(superhosts):
-    #     print("{}: {}".format(i, host))
-    # for i, listing in enumerate(first_listings):
-    #     print("{}: {}".format(i, listing))
-    # for i, url in enumerate(urls):
-    #     print("{}: {}".format(i, url))
+    # for listing in listings:
+    #     print(listing)
 
     # import sqlite3
     # from sqlite3 import Error
