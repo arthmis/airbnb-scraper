@@ -1,26 +1,42 @@
 import sqlite3
 from sqlite3 import Error
+from sqlite3 import DatabaseError
+from sqlite3 import OperationalError
+from sqlite3 import ProgrammingError
+import traceback
 
 
 def create_connection(database):
+    print(f"Attempting to connect to: {database}")
     try:
         connection = sqlite3.connect(database)
-        print("Connection successful...\nUsing sqlite version: {}".format(sqlite3.version))
+        print(f"Connection successful!\nUsing sqlite version: {sqlite3.version}")
         return connection
-    except Error as error:
-        print(error)
+    except DatabaseError:
+        raise
+    except OperationalError:
+        raise
 
     return None
 
 
-def create_table(connection, sql_statement):
+def create_table(connection):
+    cursor = connection.cursor()
+    sql = f"""
+    CREATE TABLE IF NOT EXISTS listings (
+        id integer PRIMARY KEY,
+        title text NOT NULL,
+        url text NOT NULL,
+        superhost boolean NOT NULL DEFAULT 'f',
+        image_url text NOT NULL
+    )
+    """
     try:
-        cursor = connection.cursor()
-        cursor.execute(sql_statement)
-        print("Completed creating table")
-    except Error as error:
-        print("create table error: {}".format(error))
-
+        cursor.execute(sql)
+        print(f"Completed creating table: listings")
+    except OperationalError:
+        print("syntax error with create table sql")
+        traceback.print_exc()
 
 # will add listing if it isn't there otherwise
 # returns the rowid of the listing if its a duplicate
@@ -32,52 +48,48 @@ def add_listing(connection, listing):
     duplicate = find_listing_by_url(connection, listing.url)
     if duplicate is None:
         cursor = connection.cursor()
-        cursor.execute(statement, (listing.title, listing.url, listing.superhost, listing.image_url))
-        connection.commit()
+        try:
+            cursor.execute(statement, (listing.title, listing.url, listing.superhost, listing.image_url))
+        except Error as error:
+            traceback.print_exc()
+            raise
+        else:
+            connection.commit()
         return cursor.lastrowid
     else:
         return duplicate[0]
 
-# currently not relevant, will probably delete later
-def find_listing_by_title(connection, title):
-    cursor = connection.cursor()
-    cursor.execute('SELECT * FROM listings WHERE title=?', (title,))
-    listing = cursor.fetchone()
-    if listing is None:
-        return None
-    else:
-        return listing
-
-
+# Urls are always unique so I can use this to ensure
+# there aren't any duplicate listings
 def find_listing_by_url(connection, url):
     cursor = connection.cursor()
-    cursor.execute("SELECT * FROM listings WHERE url=?", (url,))
-    listing = cursor.fetchone()
-    if listing is None:
-        return None
+    try:
+        cursor.execute("SELECT * FROM listings WHERE url=?", (url,))
+    except Error as error:
+        traceback.print_exc()
+        raise
     else:
-        return listing
+        listing = cursor.fetchone()
 
+        if listing is None:
+            return None
+        else:
+            return listing
 
-def find_all_listings(connection):
+def find_all_listings(connection, limit=5):
     cursor = connection.cursor()
-    cursor.execute("SELECT * FROM listings LIMIT 10")
-    listings = cursor.fetchall()
-    if len(listings) == 0:
-        return None
+    try:
+        cursor.execute("SELECT * FROM listings LIMIT ?", (limit,))
+    except Error as error:
+        traceback.print_exc()
+        raise
     else:
-        return listings
+        listings = cursor.fetchall()
+        if len(listings) == 0:
+            return None
+        else:
+            return listings
 
-
-create_table_sql = """
-CREATE TABLE IF NOT EXISTS listings (
-    id integer PRIMARY KEY,
-    title text NOT NULL,
-    url text NOT NULL,
-    superhost boolean NOT NULL DEFAULT 'f',
-    image_url text NOT NULL
-)
-"""
 
 import scrape_page
 if __name__ == "__main__":
@@ -90,8 +102,11 @@ if __name__ == "__main__":
     #
     # connection = create_connection("listings.db")
     #
-    # create_table(connection, create_table_sql)
+    # create_table(connection, "listings")
     # for listing in listings:
     #     add_listing(connection, listing)
 
     # connection.close()
+    connection = create_connection("listings.db")
+    create_table(connection)
+    print(find_all_listings(connection))
