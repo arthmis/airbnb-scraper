@@ -5,16 +5,26 @@ from sqlite3 import OperationalError
 from sqlite3 import ProgrammingError
 import traceback
 
+import logging
+
+formatter = logging.Formatter("%(levelname)s - %(asctime)s - %(name)s - %(message)s")
+logger = logging.getLogger("crawl_airbnb")
+logger.setLevel(logging.DEBUG)
+console_handler = logging.StreamHandler()
+console_handler.setFormatter(formatter)
+logger.addHandler(console_handler)
 
 def create_connection(database):
-    print(f"Attempting to connect to: {database}")
+    logger.info(f"Attempting to connect to: {database}")
     try:
         connection = sqlite3.connect(database)
-        print(f"Connection successful!\nUsing sqlite version: {sqlite3.version}")
+        logger.info(f"Connection successful!\nUsing sqlite version: {sqlite3.version}")
         return connection
     except DatabaseError:
+        logger.exception("Database error", exc_info=True)
         raise
     except OperationalError:
+        logger.exception("OperationalError", exc_info=True)
         raise
 
     return None
@@ -33,10 +43,9 @@ def create_table(connection):
     """
     try:
         cursor.execute(sql)
-        print(f"Completed creating table: listings")
+        logger.info(f"Completed creating table: listings")
     except OperationalError:
-        print("syntax error with create table sql")
-        traceback.print_exc()
+        logger.exception("Syntax error with create table sql:", exc_info=True)
 
 # will add listing if it isn't there otherwise
 # returns the rowid of the listing if its a duplicate
@@ -51,10 +60,12 @@ def add_listing(connection, listing):
         try:
             cursor.execute(statement, (listing.title, listing.url, listing.superhost, listing.image_url))
         except Error as error:
-            traceback.print_exc()
+            logger.exception(f"Failed to add listing to database with error: {error}.", exc_info=True)
             raise
         else:
+            logger.info(f"Added listing with rowid: {cursor.lastrowid}")
             connection.commit()
+            logger.info("Committed listing to db.")
         return cursor.lastrowid
     else:
         return duplicate[0]
@@ -66,14 +77,17 @@ def find_listing_by_url(connection, url):
     try:
         cursor.execute("SELECT * FROM listings WHERE url=?", (url,))
     except Error as error:
+        logger.exception(f"Failed to find listing with error: {error}", exc_info=True)
         traceback.print_exc()
         raise
     else:
         listing = cursor.fetchone()
 
         if listing is None:
+            logger.info("Url was not found.")
             return None
         else:
+            logger.info("Successfully found url.")
             return listing
 
 def find_all_listings(connection, limit=5):
@@ -86,8 +100,10 @@ def find_all_listings(connection, limit=5):
     else:
         listings = cursor.fetchall()
         if len(listings) == 0:
+            logger.info("Didn't find any listings.")
             return None
         else:
+            logger.info(f"Found {limit} listings.")
             return listings
 
 
