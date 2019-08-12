@@ -248,13 +248,13 @@ def help_prompt():
     response = slack_client.chat_postMessage(channel="#general", text=options)
 
 
-def write_toml(toml_data, file_path):
+def write_config(toml_data, file_path):
     file = open(file_path, "w")
     file.write(toml_data)
     file.close()
 
 
-def read_toml(toml_path):
+def read_config(toml_path):
     file = open(toml_path, "r")
     toml_data = toml.parse(file.read())
 

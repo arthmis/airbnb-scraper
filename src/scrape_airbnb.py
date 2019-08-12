@@ -1,33 +1,38 @@
 import sys
 import traceback
+import time
+from datetime import date
+import logging
 
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver import Firefox
-from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.firefox.options import Options
 from selenium.webdriver.support import expected_conditions as expected
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.common.exceptions import NoSuchElementException
 
-from datetime import date
-
-import time
-
 import tomlkit as toml
 
-from slack_bot import write_toml, read_toml
+from tenacity import retry, wait_exponential, stop_after_attempt, RetryError, before_log, after_log, retry_if_exception_type
+
+from slack_bot import write_config, read_config
 
 from scrape_page import scrape, Listing
 
-# config_file = open("config.toml", "r")
-# config = toml.loads(config_file.read())
-# config_file.close()
-# config = read_toml("config.toml")
-# print(config['start_date'])
+formatter = logging.Formatter('%(levelname)s - %(asctime)s - %(name)s - %(message)s')
+logger = logging.getLogger('crawl_airbnb')
+logger.setLevel(logging.DEBUG)
+console_handler = logging.StreamHandler()
+console_handler.setFormatter(formatter)
+logger.addHandler(console_handler)
 
+# add logging before retry attempts anything
+@retry(wait=wait_exponential(multiplier=1, min=4, max=30), stop=stop_after_attempt(5), before=before_log(logger, logging.DEBUG), after=after_log(logger, logging.DEBUG), retry=retry_if_exception_type(NoSuchElementException))
+# @retry(wait=wait_exponential(multiplier=1, min=4, max=30), stop=stop_after_attempt(5))
 def crawl_airbnb(browser):
+    logger.info("navigating to https://www.airbnb.com/")
     browser.get("https://www.airbnb.com/")
 
     time.sleep(2)
@@ -37,13 +42,16 @@ def crawl_airbnb(browser):
             expected.visibility_of(
                 browser.find_element_by_id("Koan-magic-carpet-koan-search-bar__input")
             ),
-            "could not find location input element",
+            "",
         )
     except NoSuchElementException:
-        print("Could not find location input element")
+        logger.exception("Could not find location input element.", exc_info=True)
         raise
+    else:
+        logger.info("Found location input search bar.")
 
     location_input_element.send_keys(config["location"])
+    logger.info(f'Sent the location: {config["location"]} with send keys')
 
     time.sleep(2)
 
@@ -52,12 +60,13 @@ def crawl_airbnb(browser):
             "Koan-magic-carpet-koan-search-bar__option-0"
         )
     except NoSuchElementException:
-        print("Could not find first location option")
+        logger.exception("Could not find first location option.", exc_info=True)
         raise 
     else:
         # first_location_option.click() and actions.click() don't click for some reason
         # so execute_script is necessary
         browser.execute_script('arguments[0].click();', first_location_option)
+        logger.info("Found first option for location search bar and clicked")
 
     start_date = date.fromisoformat(config["start_date"])
     end_date = date.fromisoformat(config["end_date"])
@@ -65,13 +74,13 @@ def crawl_airbnb(browser):
     try:
         assert start_date < end_date
     except AssertionError:
-        print("start date doesn't precede the end date in the configuration")
+        logger.exception(f'Start date doesn\'t precede the end date in the configuration\nstart_date: {config["start_date"]}, end_date: {config["end_date"]}', exc_info=True)
         raise 
 
     try:
         assert date.today() < start_date
     except AssertionError:
-        print("start date precedes today's date")
+        logger.exception(f'start date shouldn\'t precede today\'s date\nstart_date: {config["start_date"]}, today: {date.today()}', exc_info=True)
         raise 
 
     # find month and year on airbnb calendar
@@ -85,8 +94,10 @@ def crawl_airbnb(browser):
     try:
         month_and_year = browser.find_element_by_xpath(month_and_year_xpath)
     except NoSuchElementException:
-        print("Couldn't find month and year strong element on airbnb calendar")
+        logger.exception("Couldn't find month and year strong element on airbnb calendar", exc_info=True)
         raise
+    else:
+        logger.info("Found strong element that contains month and year")
 
     time.sleep(3)
 
@@ -94,10 +105,18 @@ def crawl_airbnb(browser):
     try:
         next_month_arrow = browser.find_element_by_xpath(next_month_arrow_xpath)
     except NoSuchElementException:
-        print("Couldn't find next month arrow")
+        logger.exception("Couldn't find next month arrow on calendar", exc_info=True)
         raise
+    else:
+        logger.info("Found next month arrow on calendar")
 
-    while month_and_year.text != f"{start_date:%B %Y}".format(start_date):
+    while month_and_year.text != f"{start_date:%B %Y}":
+        # check to see if somehow program moved past the correct month and year
+        # this happened occasionally in testing
+        # month_and_year_text = month_and_year.text.split()
+        # if int(month_and_year_text[1]) > start_date.year:
+        #     raise ValueError(f'Visible calendar year: {month_and_year_text[1]} is greater than start_date year: {start_date.year}')
+
         # increment year if december isn't the start date month
         if current_month.month == 12:
             current_month = date(current_month.year + 1, 1, current_month.day)
@@ -113,7 +132,10 @@ def crawl_airbnb(browser):
         try:
             month_and_year = browser.find_element_by_xpath(month_and_year_xpath)
         except NoSuchElementException:
-            print("Couldn't find month and year strong element on airbnb calendar")
+            logger.exception(f"Couldn't find month and year strong element on airbnb calendar:\nmonth and year on calendar:{month_and_year.text}, start date month and year: {start_date:%B %Y}", exc_info=True)
+            raise
+        else:
+            logger.info("Found start date year and month on calendar")
 
 
     # find and click start date
@@ -122,9 +144,11 @@ def crawl_airbnb(browser):
     try:
         start_date_element = browser.find_element_by_xpath(start_date_element_xpath)
     except NoSuchElementException:
-        print("Couldn't find start date td element that specifies the day")
+        logger.exception("Couldn't find start date td element that specifies the day", exc_info=True)
+        raise
     else:
         start_date_element.click()
+        logger.info("Found and clicked correct date for start date")
 
     time.sleep(2)
 
@@ -146,17 +170,21 @@ def crawl_airbnb(browser):
         try:
             month_and_year = browser.find_element_by_xpath(month_and_year_xpath)
         except NoSuchElementException:
-            print("Couldn't find month and year strong element on airbnb calendar")
+            logger.exception(f"Couldn't find month and year strong element on airbnb calendar.\nmonth and year on calendar: {month_and_year.text}, end date month and year: {end_date:%B %Y}", exc_info=True)
             raise
+        else:
+            logger.info("Found month and year for end date on calendar")
 
     # find and click end date
     end_date_element_xpath = f'//td[@aria-label="Choose {end_date:%A, %B {end_date.day}, %Y} as your end date. It\'s available."]'
     try:
         end_date_element = browser.find_element_by_xpath(end_date_element_xpath)
     except NoSuchElementException:
-        print("Couldn't find specific date number and month")
+        logger.exception("Couldn't find specific date number and month: ", exc_info=True)
+        raise
     else:
         end_date_element.click()
+        logger.info("Found the end date on calendar and clicked")
 
     time.sleep(2)
 
@@ -167,9 +195,10 @@ def crawl_airbnb(browser):
     try:
         home_search_button = browser.find_element_by_xpath(home_search_button_xpath)
     except NoSuchElementException:
-        print("Couldn't find search button that submits the form")
+        logger.exception("Couldn't find search button that submits the form", exc_info=True)
     else:
         home_search_button.click()
+        logger.info("Found search/submit button for form on main page and clicked.")
 
     entire_homes_xpath = '//img[@alt="Entire homes"]'
     try:
@@ -268,9 +297,14 @@ def crawl_airbnb(browser):
 
 
 if __name__ == "__main__":
-    config = read_toml("config.toml")
+    # logging.basicConfig(level=logging.DEBUG, format=formatter)
+    # for some reason need to call this to allow lower levels of logging
+    # logging.basicConfig()
+    # create formatter
+
+    config = read_config("config.toml")
     options = Options()
-    # options.add_argument('-headless')
+    options.add_argument('-headless')
     browser = Firefox(executable_path=config['driver_path'], options=options)
     browser.implicitly_wait(30)
     wait = WebDriverWait(browser, timeout=15)
@@ -288,14 +322,14 @@ if __name__ == "__main__":
         # type, value, traceback = sys.exc_info()
         # print('Error finding element {value} of type {type}\n{traceback}')
         traceback.print_exc()
+    except RetryError:
+        print("All attempts at crawling airbnb failed")
+        traceback.print_exc()
     else:
         listings = scrape(page_source)
         print(len(listings))
         if len(listings) > 0:
             print(listings[0])
-
-        # for listing in listings:
-        #     print(listing)
     finally:
         browser.quit()
 

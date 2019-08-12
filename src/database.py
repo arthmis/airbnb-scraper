@@ -110,3 +110,4 @@ if __name__ == "__main__":
     connection = create_connection("listings.db")
     create_table(connection)
     print(find_all_listings(connection))
+    connection.close()
