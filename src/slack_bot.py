@@ -35,35 +35,40 @@ console_handler = logging.StreamHandler()
 console_handler.setFormatter(formatter)
 logger.addHandler(console_handler)
 
+bot_id = "@ULQA3K1H8"
+
 
 @RTMClient.run_on(event="message")
 def respond_message(**payload):
     data = payload["data"]
     if "@ULQA3K1H8" in data["text"]:
-        if "change location" in data["text"]:
+        if f"<{bot_id}> change location" == data["text"]:
             logger.info("Changing location...")
             change_location(data)
-        elif "show dates" in data["text"]:
+        elif f"<{bot_id}> show dates" == data["text"]:
             logger.info("Showing dates...")
             show_dates(data)
-        elif "change start date" in data["text"]:
+        elif f"<{bot_id}> change start date" == data["text"]:
             logger.info("Changing start date...")
             change_start_date(data)
-        elif "change end date" in data["text"]:
+        elif f"<{bot_id}> change end date" == data["text"]:
             logger.info("Changing end date...")
             change_end_date(data)
-        elif "help" in data["text"]:
+        elif f"<{bot_id}> help" == data["text"]:
             logger.info("Showing help prompt...")
             help_prompt()
-        elif "listings" in data["text"]:
+        elif f"<{bot_id}> listings" == data["text"]:
             logger.info("Showing top 5 listings...")
             show_listings(data)
-        elif "change prices" in data["text"]:
+        elif f"<{bot_id}> change prices" == data["text"]:
             logger.info("Changing prices...")
             change_prices(data)
-        elif "show prices" in data["text"]:
+        elif f"<{bot_id}> show prices" == data["text"]:
             logger.info("Showing price range...")
             show_price_range()
+        else:
+            logger.debug(f'User input was: {data["text"]}')
+            help_prompt()
 
 
 def show_listings(data):
@@ -85,13 +90,14 @@ def show_listings(data):
             }
         )
     else:
+        logger.info(f"Found {len(listings)} listings.")
         for i in range(len(listings)):
             superhost_status = ""
 
             if listings[i][3] == 1:
                 superhost_status = "Superhost"
             else:
-                superhost_status = "Non Superhost"
+                superhost_status = ""
 
             output.append(
                 format_listing(
@@ -101,7 +107,12 @@ def show_listings(data):
 
     connection.close()
     response = slack_client.chat_postMessage(channel="#general", blocks=output)
-    assert response["ok"]
+    try:
+        assert response["ok"]
+    except AssertionError:
+        logger.exception("", exc_info=True)
+        logger.debug(f"{response}")
+
 
 
 # uses slack's block styling to format a listing
@@ -118,7 +129,7 @@ def format_listing(listing):
         "type": "section",
         "text": {
             "type": "mrkdwn",
-            "text": "<{}|{}>\n\n{}".format(url, title, superhost_status),
+            "text": f"<{url}|{title}>\n{superhost_status}",
         },
         "accessory": {
             "type": "image",
@@ -144,8 +155,11 @@ def show_dates(data):
         message = f'The current start date is: {config["start_date"]}\nThe current end date is: {config["end_date"]}'
 
     response = slack_client.chat_postMessage(channel="#general", text=message)
-    log.debug(f"{response}")
-    assert response["ok"]
+    try:
+        assert response["ok"]
+    except AssertionError:
+        logger.exception("", exc_info=True)
+        logger.debug(f"{response}")
 
 
 def change_start_date(data):
@@ -172,8 +186,11 @@ def change_start_date(data):
             logger.info(f"User wrote this date with error: {error}")
             message = f"Format should be yyyy-mm-dd, i.e. 2019-01-03"
     response = slack_client.chat_postMessage(channel="#general", text=message)
-    log.debug(f"{response}")
-    assert response["ok"]
+    try:
+        assert response["ok"]
+    except AssertionError:
+        logger.exception("", exc_info=True)
+        logger.debug(f"{response}")
 
 
 def change_end_date(data):
@@ -200,8 +217,11 @@ def change_end_date(data):
             logger.exception("", exc_info=True)
             message = "Format should be yyyy-mm-dd, i.e. 2019-02-03"
     response = slack_client.chat_postMessage(channel="#general", text=message)
-    log.debug(f"{response}")
-    assert response["ok"]
+    try:
+        assert response["ok"]
+    except AssertionError:
+        logger.exception("", exc_info=True)
+        logger.debug(f"{response}")
 
 
 def change_location(data):
@@ -218,15 +238,21 @@ def change_location(data):
         response = slack_client.chat_postMessage(
             channel="#general", text=f"Location changed to {new_location}"
         )
-        log.debug(f"{response}")
-        assert response["ok"]
+        try:
+            assert response["ok"]
+        except AssertionError:
+            logger.exception("", exc_info=True)
+            logger.debug(f"{response}")
 
 
 def post_config_not_found_error():
     message = f"There was a problem with configuration file: `{config_path}`"
     response = slack_client.chat_postMessage(channel="#general", text=message)
-    log.debug(f"{response}")
-    assert response["ok"]
+    try:
+        assert response["ok"]
+    except AssertionError:
+        logger.exception("", exc_info=True)
+        logger.debug(f"{response}")
 
 
 def change_prices(data):
@@ -249,8 +275,11 @@ def change_prices(data):
             channel="#general",
             text="The usage for change prices is:\nchange prices [new minimum price] [new maximum price]",
         )
-        log.debug(f"{response}")
-        assert response["ok"]
+        try:
+            assert response["ok"]
+        except AssertionError:
+            logger.exception("", exc_info=True)
+            logger.debug(f"{response}")
         return
 
     try:
@@ -263,8 +292,11 @@ def change_prices(data):
             text="New minimum price has to be a number: {}".format(new_min_price),
         )
         print("New minimum is not a float")
-        log.debug(f"{response}")
-        assert response["ok"]
+        try:
+            assert response["ok"]
+        except AssertionError:
+            logger.exception("", exc_info=True)
+            logger.debug(f"{response}")
         return
 
     try:
@@ -276,8 +308,11 @@ def change_prices(data):
             channel="#general",
             text="New maximum price has to be a number: {}".format(new_max_price),
         )
-        log.debug(f"{response}")
-        assert response["ok"]
+        try:
+            assert response["ok"]
+        except AssertionError:
+            logger.exception("", exc_info=True)
+            logger.debug(f"{response}")
         return
 
     # airbnb minimum
@@ -292,8 +327,12 @@ def change_prices(data):
             channel="#general",
             text=f"Maximum price cannot be lower than minimum price:\ninput min: {new_min_price}\ninput max: {new_max_price}",
         )
-        log.debug(f"{response}")
-        assert response["ok"]
+        try:
+            assert response["ok"]
+        except AssertionError:
+            logger.exception("", exc_info=True)
+            logger.debug(f"{response}")
+        return
         return
 
     config["max_price"] = new_max_price
@@ -315,8 +354,11 @@ def show_price_range():
             channel="#general",
             text="Price range is: {}-{} dollars".format(min_price, max_price),
         )
-        log.debug(f"{response}")
-        assert response["ok"]
+        try:
+            assert response["ok"]
+        except AssertionError:
+            logger.exception("", exc_info=True)
+            logger.debug(f"{response}")
 
 
 def help_prompt():
@@ -333,8 +375,11 @@ def help_prompt():
     options += "\nshow prices: Show price range\n"
 
     response = slack_client.chat_postMessage(channel="#general", text=options)
-    log.debug(f"{response}")
-    assert response["ok"]
+    try:
+        assert response["ok"]
+    except AssertionError:
+        logger.exception("", exc_info=True)
+        logger.debug(f"{response}")
 
 
 def write_config(toml_data, file_path):

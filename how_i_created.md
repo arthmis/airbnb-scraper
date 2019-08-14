@@ -3,3 +3,4 @@
 - have to use tuples when using execute statements for sqlite3 database even when there is a single parameter
 - after all parameters are in place during web scraping, wait around 15 secs or more to ensure that the entire page loads before grabbing the page source
 - use date object from datetime to handle date management for airbnb
+- when logging in python, define all the logging in the main module then in the rest of them just call `logger=logging.getLogger(__name__)` or whatever that code is
