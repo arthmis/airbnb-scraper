@@ -4,15 +4,15 @@ from sqlite3 import DatabaseError
 from sqlite3 import OperationalError
 from sqlite3 import ProgrammingError
 import traceback
-
 import logging
 
-formatter = logging.Formatter("%(levelname)s - %(asctime)s - %(name)s - %(message)s")
-logger = logging.getLogger("crawl_airbnb")
-logger.setLevel(logging.DEBUG)
-console_handler = logging.StreamHandler()
-console_handler.setFormatter(formatter)
-logger.addHandler(console_handler)
+# formatter = logging.Formatter("%(levelname)s - %(asctime)s - %(name)s - %(message)s")
+logger = logging.getLogger(__name__)
+# logger.setLevel(logging.DEBUG)
+# console_handler = logging.StreamHandler()
+# console_handler.setFormatter(formatter)
+# logger.addHandler(console_handler)
+
 
 def create_connection(database):
     logger.info(f"Attempting to connect to: {database}")
@@ -47,6 +47,7 @@ def create_table(connection):
     except OperationalError:
         logger.exception("Syntax error with create table sql:", exc_info=True)
 
+
 # will add listing if it isn't there otherwise
 # returns the rowid of the listing if its a duplicate
 def add_listing(connection, listing):
@@ -58,9 +59,14 @@ def add_listing(connection, listing):
     if duplicate is None:
         cursor = connection.cursor()
         try:
-            cursor.execute(statement, (listing.title, listing.url, listing.superhost, listing.image_url))
+            cursor.execute(
+                statement,
+                (listing.title, listing.url, listing.superhost, listing.image_url),
+            )
         except Error as error:
-            logger.exception(f"Failed to add listing to database with error: {error}.", exc_info=True)
+            logger.exception(
+                f"Failed to add listing to database with error: {error}.", exc_info=True
+            )
             raise
         else:
             logger.info(f"Added listing with rowid: {cursor.lastrowid}")
@@ -69,6 +75,7 @@ def add_listing(connection, listing):
         return cursor.lastrowid
     else:
         return duplicate[0]
+
 
 # Urls are always unique so I can use this to ensure
 # there aren't any duplicate listings
@@ -90,6 +97,7 @@ def find_listing_by_url(connection, url):
             logger.info("Successfully found url.")
             return listing
 
+
 def find_all_listings(connection, limit=5):
     cursor = connection.cursor()
     try:
@@ -108,6 +116,7 @@ def find_all_listings(connection, limit=5):
 
 
 import scrape_page
+
 if __name__ == "__main__":
     print("in database script")
 
