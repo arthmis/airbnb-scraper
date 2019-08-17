@@ -32,48 +32,46 @@ import time
 # }
 
 # class Listing:
-#     def __init__(self, title, url, superhost, image_url):
+#     def __init__(self, title, url, image_url, home_type, rating, price, review_count):
 #         self.title = title
 #         self.url = url
-#         self.superhost = superhost
 #         self.image_url = image_url
 #         self.review_count = review_count
 #         self.rating = rating
+#         self.price = price
+#         self.home_type = home_type
 #
 #     def __str__(self):
-#         return "title: {}\nurl: {}\nsuperhost: {}\nimage url: {}".format(
-#             self.title, self.url, self.superhost, self.image_url
+#         return "title: {self.title}\nurl: {self.url}\nimage url: {self.image_url}\nreview count: {self.review_count}\nrating: {self.rating}\nprice: {self.price}\nhome type: {self.home_type}"
 #         )
 
 
 def scrape(html):
     soup = BeautifulSoup(html, "html.parser")
 
-    first_listings = soup.find_all("div", class_="_1dss1omb")
+    # get the listing titles 
+    titles = soup.find_all("div", class_="_1dss1omb")
+    for i, title in enumerate(titles):
+        titles[i] = titles[i].text
 
-    # get the listing names
-    for i, listings in enumerate(first_listings):
-        first_listings[i] = first_listings[i].text
-
+    # retrieve and format urls for the listings
     listing_urls = soup.find_all(
         "a", attrs={"data-check-info-section": "true", "class": "_1ol0z3h"}
     )
-
-    # retrieve and format urls for the listings
     for i, url in enumerate(listing_urls):
-        listing_urls[i] = "https://www.airbnb.com{}".format(listing_urls[i]["href"])
+        listing_urls[i] = f'https://www.airbnb.com{listing_urls[i]["href"]}'
 
     # find which listings are from a superhost
     # two possible classes for the div wrapping the superhost span
-    superhosts = soup.find_all("div", class_="_aq2oyh")
-    if len(superhosts) == 0:
-        superhosts = soup.find_all("div", class_="_14pl6ge")
+    # superhosts = soup.find_all("div", class_="_aq2oyh")
+    # if len(superhosts) == 0:
+    #     superhosts = soup.find_all("div", class_="_14pl6ge")
 
-    for i, thing in enumerate(superhosts):
-        if len(thing.contents) > 1:
-            superhosts[i] = True
-        else:
-            superhosts[i] = False
+    # for i, thing in enumerate(superhosts):
+    #     if len(thing.contents) > 1:
+    #         superhosts[i] = True
+    #     else:
+    #         superhosts[i] = False
 
     # get an image url to display image of listing on slack
     image_urls = soup.find_all("div", attrs={"class": "_1i2fr3fi", "role": "img"})
@@ -90,12 +88,24 @@ def scrape(html):
     for i, price in enumerate(prices):
         price[i] = price.parent.text.split("$", 1)[1]
 
+    # gets the number of reviews for each listing
+    review_counts = soup.select("span._1gvnvab > span._j2qalb2")
+    for i, review_count in enumerate(review_counts):
+        review_counts[i] = review_count.text
+
     listings = []
-    for title, url, superhost, image_url, home_type in zip(
-        first_listings, listing_urls, superhosts, image_urls, listing_home_types
+    for title, url, image_url, home_type, review_count, price, rating in zip(
+        titles, listing_urls, image_urls, home_types, review_counts, prices, ratings 
     ):
-        # append only those that are superhost and are not guess type listing 
-        listings.append(Listing(title, url, superhost, image_url))
+        # append only those that are not guess type listing 
+        # if less 
+        new_listing = Listing(title, url, image_url, home_type, rating, price, review_count)
+        if "guest" in listing.home_type:
+            continue
+        elif review_count < 50:
+            continue
+
+        listings.append(new_listing)
 
     # for listing in listings:
     #     print(listing)
@@ -112,7 +122,7 @@ def get_page(link):
 from airbnb_spider import crawl_airbnb
 if __name__ == "__main__":
     html_source = open("first_type_of_results.html")
-    # html_source = crawl_airbnb()
+    html_source = crawl_airbnb()
     # html_source = open("second_type_results.html")
 
     # listings = scrape(html_source.read())
@@ -122,17 +132,18 @@ if __name__ == "__main__":
     # print(home_types["APARTMENT"])
     soup = BeautifulSoup(html_source, "html.parser")
 
-    # listing_types = soup.find_all("span", class_="_1xxanas2", style="color: rgb(118, 118, 118);")
+    # listing_home_types = soup.find_all("span", style="color: rgb(118, 118, 118);")
+    # for i, home_type in enumerate(listing_home_types):
+    #     print(home_type.text)
 
-    prices = soup.find_all("span", style="color: rgb(118, 118, 118);")
-    # for i, home_type in enumerate(listing_home_types):
-    #     listing_home_types[i] = home_type.text.split(" ", 1)[1]
-    #
-    # for i, home_type in enumerate(listing_home_types):
-    #     print(home_type)
-    # print(soup.select("span._1p3joamp > span._krjbj")[0].parent.text)
-    # prices = soup.select("span._1p3joamp > span._krjbj")
-    prices = soup.select("span._j2qalb2 > span._j2qalb2 > span._krjbj")
-    for i, price in enumerate(prices):
-        price[i] = price.parent.text.split("$", 1)[1]
+    # prices = soup.select("span._j2qalb2 > span._j2qalb2 > span._krjbj")
+    # for i, price in enumerate(prices):
+    #     print(price.parent.text)
+        # print(price.parent.text.split("$", 1)[1])
+        # price[i] = price.parent.text.split("$", 1)[1]
+
+    review_counts = soup.select("span._1gvnvab > span._j2qalb2")
+    for i, review_count in enumerate(review_counts):
+        review_counts[i] = review_count.text
+        # print(review_count.text)
 

@@ -40,7 +40,7 @@ GECKODRIVER = os.environ["GECKODRIVER"]
 
 @retry(
     wait=wait_exponential(multiplier=1, min=4, max=30),
-    stop=stop_after_attempt(5),
+    stop=stop_after_attempt(3),
     before=before_log(logger, logging.DEBUG),
     after=after_log(logger, logging.DEBUG),
     retry=retry_if_exception_type(NoSuchElementException),
@@ -62,7 +62,7 @@ def crawl_airbnb():
     wait = WebDriverWait(browser, timeout=15)
     actions = ActionChains(browser)
     browser.get("https://www.airbnb.com/")
-    logger.info("navigating to https://www.airbnb.com/")
+    logger.debug("navigating to https://www.airbnb.com/")
 
     time.sleep(2)
     # click on search bar to choose location
@@ -77,10 +77,10 @@ def crawl_airbnb():
         logger.exception("Could not find location input element.", exc_info=True)
         raise
     else:
-        logger.info("Found location input search bar.")
+        logger.debug("Found location input search bar.")
 
     location_input_element.send_keys(config["location"])
-    logger.info(f'Sent the location: {config["location"]} with send keys')
+    logger.debug(f'Sent the location: {config["location"]} with send keys')
 
     time.sleep(2)
 
@@ -95,7 +95,7 @@ def crawl_airbnb():
         # first_location_option.click() and actions.click() don't click for some reason
         # so execute_script is necessary
         browser.execute_script("arguments[0].click();", first_location_option)
-        logger.info("Found first option for location search bar and clicked")
+        logger.debug("Found first option for location search bar and clicked")
 
     start_date = date.fromisoformat(config["start_date"])
     end_date = date.fromisoformat(config["end_date"])
@@ -135,7 +135,7 @@ def crawl_airbnb():
         )
         raise
     else:
-        logger.info("Found strong element that contains month and year")
+        logger.debug("Found strong element that contains month and year")
 
     time.sleep(3)
 
@@ -146,7 +146,7 @@ def crawl_airbnb():
         logger.exception("Couldn't find next month arrow on calendar", exc_info=True)
         raise
     else:
-        logger.info("Found next month arrow on calendar")
+        logger.debug("Found next month arrow on calendar")
 
     while month_and_year.text != f"{start_date:%B %Y}":
         # check to see if somehow program moved past the correct month and year
@@ -177,9 +177,9 @@ def crawl_airbnb():
             )
             raise
         else:
-            logger.info("Clicked next month arrow.")
+            logger.debug("Clicked next month arrow.")
 
-    logger.info("Found start date year and month on calendar")
+    logger.debug("Found start date year and month on calendar")
     # find and click start date
     start_date_element_xpath = f'//td[@aria-label="Choose {start_date:%A, %B {start_date.day}, %Y} as your start date. It\'s available."]'
 
@@ -192,7 +192,7 @@ def crawl_airbnb():
         raise
     else:
         start_date_element.click()
-        logger.info("Found and clicked correct date for start date")
+        logger.debug("Found and clicked correct date for start date")
 
     time.sleep(3)
 
@@ -221,9 +221,9 @@ def crawl_airbnb():
             )
             raise
         else:
-            logger.info("Clicked next month arrow.")
+            logger.debug("Clicked next month arrow.")
 
-    logger.info("Found month and year for end date on calendar")
+    logger.debug("Found month and year for end date on calendar")
     # find and click end date
     end_date_element_xpath = f'//td[@aria-label="Choose {end_date:%A, %B {end_date.day}, %Y} as your end date. It\'s available."]'
     try:
@@ -235,7 +235,7 @@ def crawl_airbnb():
         raise
     else:
         end_date_element.click()
-        logger.info("Found the end date on calendar and clicked")
+        logger.debug("Found the end date on calendar and clicked")
 
     time.sleep(2)
 
@@ -251,7 +251,7 @@ def crawl_airbnb():
         )
     else:
         home_search_button.click()
-        logger.info("Found search/submit button for form on main page and clicked.")
+        logger.debug("Found search/submit button for form on main page and clicked.")
 
     entire_homes_xpath = '//img[@alt="Entire homes"]'
     try:
@@ -260,13 +260,13 @@ def crawl_airbnb():
         )
     except NoSuchElementException:
         # If entire home button is not found then stays button is clicked
-        logger.info("Couldn't find entire homes button, trying to click stays button.")
+        logger.debug("Couldn't find entire homes button, trying to click stays button.")
         stays_button_xpath = '//a[@class="_10l4eyf" and @aria-busy="false" and @data-veloute="explore-nav-card:/homes"]'
         stays_button = wait.until(
             expected.visibility_of(browser.find_element_by_xpath(stays_button_xpath))
         )
         stays_button.click()
-        logger.info("Found and clicked on stays button.")
+        logger.debug("Found and clicked on stays button.")
 
         time.sleep(3)
         # finds and clicks type of place filter
@@ -275,7 +275,7 @@ def crawl_airbnb():
             expected.visibility_of(browser.find_element_by_xpath(type_of_place_xpath))
         )
         type_of_place.click()
-        logger.info("Found and clicked on type place filter/button.")
+        logger.debug("Found and clicked on type place filter/button.")
 
         time.sleep(2)
         # finds and click entire home checkbox
@@ -284,7 +284,7 @@ def crawl_airbnb():
         )
         entire_home_checkbox = browser.find_element_by_id(entire_home_checkbox_id)
         entire_home_checkbox.click()
-        logger.info("Found and clicked on entire home checkbox.")
+        logger.debug("Found and clicked on entire home checkbox.")
 
         # saves the new filter for type of place
         save_type_of_place_button_xpath = (
@@ -296,12 +296,12 @@ def crawl_airbnb():
             )
         )
         save_type_of_place_button.click()
-        logger.info(
+        logger.debug(
             "Found and clicked save button after checking entire place checkbox"
         )
     else:
         entire_homes.click()
-        logger.info("Found and clicked entire homes button.")
+        logger.debug("Found and clicked entire homes button.")
 
     time.sleep(3)
 
@@ -315,7 +315,7 @@ def crawl_airbnb():
     )
     time.sleep(2)
     price_button.click()
-    logger.info("Found and clicked price filter button.")
+    logger.debug("Found and clicked price filter button.")
     time.sleep(2)
 
     # change minimum price
@@ -324,7 +324,7 @@ def crawl_airbnb():
         price_filter_min.send_keys(Keys.BACK_SPACE)
 
     price_filter_min.send_keys(str(config["min_price"]))
-    logger.info(f'Changed minimum price to: {config["min_price"]}')
+    logger.debug(f'Changed minimum price to: {config["min_price"]}')
 
     time.sleep(2)
     # change max price
@@ -334,7 +334,7 @@ def crawl_airbnb():
 
     time.sleep(2)
     price_filter_max.send_keys(str(config["max_price"]))
-    logger.info(f'Changed maximum price to: {config["max_price"]}')
+    logger.debug(f'Changed maximum price to: {config["max_price"]}')
 
     apply_price = wait.until(
         expected.visibility_of(
@@ -344,20 +344,70 @@ def crawl_airbnb():
         )
     )
     apply_price.click()
-    logger.info("Clicked apply price for new min and max prices.")
+    logger.debug("Clicked apply price for new min and max prices.")
+
+    more_filters_xpath = '//button[@type="button" and @aria-controls="menuItemComponent-dynamicMoreFilters"]'
+    time.sleep(2)
+    more_filters_button = browser.find_element_by_xpath(more_filters_xpath)
+    more_filters_button.click()
+    logger.debug("Found and clicked on more filters button.")
+
+    superhost_filter_id = "DynamicFilterSwitchItem-other_options-superhost-true--label"
+    time.sleep(2)
+    superhost_filter = browser.find_element_by_id(superhost_filter_id)
+    superhost_filter.click()
+    logger.debug("Found and clicked superhost filter.")
+
+    show_stays_xpath = '//button[@class="_72kmbi0" and @type="button" and @aria-busy="false"]'
+    time.sleep(2)
+    show_stays_button = browser.find_element_by_xpath(show_stays_xpath)
+    show_stays_button.click()
+    logger.debug("Found and clicked on show stays button.")
 
     # wait is necessary so that it gives the browser time to load the results before
     # getting the page_source
     time.sleep(20)
 
-    logger.info("Waited 20 seconds for browser to load results.")
+    logger.debug("Waited 20 seconds for browser to load results.")
     page_source = browser.page_source
-    logger.info("Retrieved page source.")
+    logger.debug("Retrieved page source.")
 
-    browser.quit()
-    logger.info("Exited browser.")
+    # browser.quit()
+    logger.debug("Exited browser.")
 
     return page_source
+
+def crawl_link():
+    link = "https://www.airbnb.com/s/New-Orleans--LA--United-States/homes?refinement_paths%5B%5D=%2Fhomes&checkin=2019-08-23&checkout=2019-08-27&price_min=96&price_max=185&room_types%5B%5D=Entire%20home%2Fapt&query=New%20Orleans%2C%20LA%2C%20United%20States&place_id=ChIJZYIRslSkIIYRtNMiXuhbBts&search_type=filter_change"
+    options = Options()
+    # options.add_argument("-headless")
+    browser = Firefox(executable_path=GECKODRIVER, options=options)
+    browser.implicitly_wait(30)
+    wait = WebDriverWait(browser, timeout=15)
+    actions = ActionChains(browser)
+    browser.get(link)
+
+    more_filters_xpath = '//button[@type="button" and @aria-controls="menuItemComponent-dynamicMoreFilters"]'
+    time.sleep(2)
+    more_filters_button = browser.find_element_by_xpath(more_filters_xpath)
+    more_filters_button.click()
+    logger.debug("Found and clicked on more filters button.")
+
+    superhost_filter_id = "DynamicFilterSwitchItem-other_options-superhost-true--label"
+    time.sleep(2)
+    superhost_filter = browser.find_element_by_id(superhost_filter_id)
+    superhost_filter.click()
+    logger.debug("Found and clicked superhost filter.")
+
+    show_stays_xpath = '//button[@class="_72kmbi0" and @type="button" and @aria-busy="false"]'
+    time.sleep(5)
+    show_stays_button = browser.find_element_by_xpath(show_stays_xpath)
+    logger.debug("Found show stays button.")
+    show_stays_button.click()
+    # actions.click(show_stays_button)
+    # browser.execute_script("arguments[0].click();", show_stays_button)
+    # logger.debug("Found and clicked on show stays button.")
+    browser.quit()
 
 
 if __name__ == "__main__":
@@ -371,18 +421,17 @@ if __name__ == "__main__":
     logger.addHandler(console_handler)
 
     listings = []
+    # crawl_link()
 
     try:
-        page_source = crawl_airbnb(browser)
+        page_source = crawl_airbnb()
     except RetryError:
         logger.exception("All attempts at crawling airbnb failed.", exc_info=True)
     else:
         listings = scrape(page_source)
-        logger.info(
+        logger.debug(
             f'Successfully scraped {config["location"]} on airbnb and found {len(listings)} listings.\nstart date: {config["start_date"]}, end date : {config["end_date"]}\nminimum price: {config["min_price"]}, maximum price: {config["max_price"]}'
         )
-    finally:
-        browser.quit()
 
     # import sqlite3
     # from sqlite3 import Error
