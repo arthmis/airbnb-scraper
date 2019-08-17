@@ -28,7 +28,7 @@ from tenacity import (
 
 from dotenv import load_dotenv
 
-from slack_bot import write_config, read_config
+from utils import write_config, read_config
 
 from scrape_page import scrape, Listing
 
@@ -36,8 +36,6 @@ logger = logging.getLogger(__name__)
 
 load_dotenv(verbose=True)
 GECKODRIVER = os.environ["GECKODRIVER"]
-config_path = "config.toml"
-config = read_config(config_path)
 
 
 @retry(
@@ -48,7 +46,21 @@ config = read_config(config_path)
     retry=retry_if_exception_type(NoSuchElementException),
 )
 # @retry(wait=wait_exponential(multiplier=1, min=4, max=30), stop=stop_after_attempt(5))
-def crawl_airbnb(browser):
+def crawl_airbnb():
+    try:
+        config = read_config("config.toml")
+    except FileNotFoundError:
+        logger.exception("", exc_info=True)
+        raise
+    except Exception as error:
+        logger.exception("", exc_info=True)
+        raise
+    options = Options()
+    # options.add_argument("-headless")
+    browser = Firefox(executable_path=GECKODRIVER, options=options)
+    browser.implicitly_wait(30)
+    wait = WebDriverWait(browser, timeout=15)
+    actions = ActionChains(browser)
     browser.get("https://www.airbnb.com/")
     logger.info("navigating to https://www.airbnb.com/")
 
@@ -152,14 +164,15 @@ def crawl_airbnb(browser):
             )
 
         next_month_arrow.click()
-        time.sleep(1)
+        time.sleep(2)
+        current_month_and_year_on_calendar = month_and_year.text
 
         month_and_year_xpath = f'//strong[contains(text(), "{current_month:%B %Y}")]'
         try:
             month_and_year = browser.find_element_by_xpath(month_and_year_xpath)
         except NoSuchElementException:
             logger.exception(
-                f"Couldn't find month and year strong element on airbnb calendar:\nmonth and year on calendar:{month_and_year.text}, start date month and year: {start_date:%B %Y}",
+                f"Couldn't find month and year strong element on airbnb calendar:\nmonth and year on calendar:{current_month_and_year_on_calendar}, start date month and year: {start_date:%B %Y}",
                 exc_info=True,
             )
             raise
@@ -181,7 +194,7 @@ def crawl_airbnb(browser):
         start_date_element.click()
         logger.info("Found and clicked correct date for start date")
 
-    time.sleep(2)
+    time.sleep(3)
 
     month_and_year = browser.find_element_by_xpath(month_and_year_xpath)
     next_month_arrow_xpath = '//div[@class="_1h5uiygl" and @aria-label="Move forward to switch to the next month."]'
@@ -194,14 +207,16 @@ def crawl_airbnb(browser):
             )
 
         next_month_arrow.click()
-        time.sleep(1)
+        time.sleep(2)
+
+        current_month_and_year_on_calendar = month_and_year.text
 
         month_and_year_xpath = f'//strong[contains(text(), "{current_month:%B %Y}")]'
         try:
             month_and_year = browser.find_element_by_xpath(month_and_year_xpath)
         except NoSuchElementException:
             logger.exception(
-                f"Couldn't find month and year strong element on airbnb calendar.\nmonth and year on calendar: {month_and_year.text}, end date month and year: {end_date:%B %Y}",
+                f"Couldn't find month and year strong element on airbnb calendar.\nmonth and year on calendar: {current_month_and_year_on_calendar}, end date month and year: {end_date:%B %Y}",
                 exc_info=True,
             )
             raise
@@ -339,17 +354,13 @@ def crawl_airbnb(browser):
     page_source = browser.page_source
     logger.info("Retrieved page source.")
 
+    browser.quit()
+    logger.info("Exited browser.")
+
     return page_source
 
 
 if __name__ == "__main__":
-    options = Options()
-    options.add_argument("-headless")
-    browser = Firefox(executable_path=GECKODRIVER, options=options)
-    browser.implicitly_wait(30)
-    wait = WebDriverWait(browser, timeout=15)
-    actions = ActionChains(browser)
-
     formatter = logging.Formatter(
         "%(levelname)s - %(asctime)s - %(name)s - %(message)s"
     )

@@ -1,14 +1,15 @@
+import os
+import database
+import logging
+from datetime import date
+
+from selenium.common.exceptions import NoSuchWindowException
+
 import slack
 from slack import RTMClient
 
-# from slack import RTMClient, SlackClientError, SlackApiError
-import os
-import database
 from dotenv import load_dotenv
 import tomlkit as toml
-
-# from tomlkit import ParseError
-from datetime import date
 
 from tenacity import (
     retry,
@@ -20,7 +21,11 @@ from tenacity import (
     retry_if_exception_type,
 )
 
-import logging
+import airbnb_spider
+
+from utils import read_config, write_config
+
+from scrape_page import scrape
 
 config_path = "config.toml"
 
@@ -66,6 +71,9 @@ def respond_message(**payload):
         elif f"<{bot_id}> show prices" == data["text"]:
             logger.info("Showing price range...")
             show_price_range()
+        elif f"<{bot_id}> crawl airbnb" == data["text"]:
+            logger.info("Started a new crawl on airbnb...")
+            activate_crawler()
         else:
             logger.debug(f'User input was: {data["text"]}')
             help_prompt()
@@ -358,8 +366,48 @@ def show_price_range():
             assert response["ok"]
         except AssertionError:
             logger.exception("", exc_info=True)
-            logger.debug(f"{response}")
+            logger.debug(response)
 
+def activate_crawler():
+    try:
+        page_source = airbnb_spider.crawl_airbnb()
+    except RetryError:
+        logger.exception("All attempts at crawling airbnb failed.", exc_info=True)
+        response = slack_client.chat_postMessage(
+            channel="#general",
+            text="Failed to crawl airbnb for new listings. Spider tried crawling 5 times.",
+        )
+        return
+    except FileNotFoundError:
+        response = slack_client.chat_postMessage(
+            channel="#general",
+            text="Failed to crawl airbnb for new listings because configuration file could not be found.",
+        )
+        return
+    except NoSuchWindowException:
+        logger.info("Browser window has been closed unexpectedly.", exc_info=True)
+        response = slack_client.chat_postMessage(
+            channel="#general",
+            text="Failed to crawl airbnb for new listings because there was an error reading configuration.",
+        )
+    except Exception as error:
+        print(error)
+        logger.info(error)
+        response = slack_client.chat_postMessage(
+            channel="#general",
+            text="Failed to crawl airbnb for new listings because there was an error reading configuration.",
+        )
+        return
+    else:
+        listings = scrape(page_source)
+        config = read_config(config_path)
+        logger.info(
+            f'Successfully scraped {config["location"]} on airbnb and found {len(listings)} listings.\nstart date: {config["start_date"]}, end date : {config["end_date"]}\nminimum price: {config["min_price"]}, maximum price: {config["max_price"]}'
+        )
+        response = slack_client.chat_postMessage(
+            channel="#general",
+            text="Successfully crawled airbnb for new listings.",
+        )
 
 def help_prompt():
     options = ""
@@ -382,50 +430,10 @@ def help_prompt():
         logger.debug(f"{response}")
 
 
-def write_config(toml_data, file_path):
-    try:
-        file = open(file_path, "w")
-    except OSError as exc:
-        logger.exception(f"Error with {file_path}:", exc_info=True)
-        raise
-    else:
-        try:
-            file.write(toml_data)
-        except Exception as error:
-            logger.exception("", exc_info=True)
-            raise
-        file.close()
-
-
-def read_config(toml_path):
-    toml_data = {}
-    try:
-        file = open(toml_path, "r")
-    except FileNotFoundError:
-        logger.exception("Error:", exc_info=True)
-        raise
-    else:
-        try:
-            toml_data = toml.parse(file.read())
-        except Exception as error:
-            logger.exception("", exc_info=True)
-            raise
-        file.close()
-
-    return toml_data
 
 
 if __name__ == "__main__":
-    logger.info("Executing slack bot...")
+    logger.info("Starting slack bot...")
 
     rtm_client = RTMClient(token=BOT_TOKEN)
     rtm_client.start()
-
-    # try:
-    #     config = read_config(config_path)
-    # except FileNotFoundError as error:
-    #     pass
-    # else:
-    #     print(config)
-
-    # config = read_config(config_path)

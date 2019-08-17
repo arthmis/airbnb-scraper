@@ -10,17 +10,40 @@ import time
 # browser = Firefox(executable_path="geckodriver", options=options)
 
 
-class Listing:
-    def __init__(self, title, url, superhost, image_url):
-        self.title = title
-        self.url = url
-        self.superhost = superhost
-        self.image_url = image_url
+# class HomeType:
+#     APARTMENT = 1 
+#     HOUSE = 2
+#     COTTAGE = 3
+#     LOFT = 4 
+#     TOWNHOUSE = 5
+#     VILLA = 6 
+#     CHALET = 7
+#     BUNGALOW = 8
 
-    def __str__(self):
-        return "title: {}\nurl: {}\nsuperhost: {}\nimage url: {}".format(
-            self.title, self.url, self.superhost, self.image_url
-        )
+# home_types = {
+#     "Apartment": HomeType.APARTMENT,
+#     "House": HomeType.HOUSE,
+#     "Cottage": HomeType.COTTAGE,
+#     "Loft": HomeType.LOFT,
+#     "Townhouse": HomeType.TOWNHOUSE,
+#     "Villa": HomeType.VILLA,
+#     "Chalet": HomeType.CHALET,
+#     "BUNGALOW": HomeType.BUNGALOW,
+# }
+
+# class Listing:
+#     def __init__(self, title, url, superhost, image_url):
+#         self.title = title
+#         self.url = url
+#         self.superhost = superhost
+#         self.image_url = image_url
+#         self.review_count = review_count
+#         self.rating = rating
+#
+#     def __str__(self):
+#         return "title: {}\nurl: {}\nsuperhost: {}\nimage url: {}".format(
+#             self.title, self.url, self.superhost, self.image_url
+#         )
 
 
 def scrape(html):
@@ -56,10 +79,24 @@ def scrape(html):
     for i, url in enumerate(image_urls):
         image_urls[i] = url["style"].split('"')[1]
 
+    listing_home_types = soup.find_all("span", style="color: rgb(118, 118, 118);")
+    for i, home_type in enumerate(listing_home_types):
+        listing_home_types[i] = home_type.text.split(" ", 1)[1]
+
+    prices = soup.select("span._1p3joamp > span._krjbj")
+    for i, price in enumerate(prices):
+        if len(price.parent.text.split("$", 2)) == 2:
+            prices[i] = price.parent.text.split("$", 2)[1]
+        elif len(price.parent.text.split("$", 2)) == 3:
+            prices[i] = price.parent.text.split("$", 2)[2]
+        else:
+            raise ValueError("There should only be previous and discounted price or regular price")
+
     listings = []
-    for title, url, superhost, image_url in zip(
-        first_listings, listing_urls, superhosts, image_urls
+    for title, url, superhost, image_url, home_type in zip(
+        first_listings, listing_urls, superhosts, image_urls, listing_home_types
     ):
+        # append only those that are superhost and are not guess type listing 
         listings.append(Listing(title, url, superhost, image_url))
 
     # for listing in listings:
@@ -76,10 +113,32 @@ def get_page(link):
 
 
 if __name__ == "__main__":
-    # html_source = open("first_type_results.html")
-    html_source = open("second_type_results.html")
+    html_source = open("first_type_of_results.html")
+    # html_source = open("second_type_results.html")
 
-    listings = scrape(html_source.read())
-    html_source.close()
+    # listings = scrape(html_source.read())
+    # html_source.close()
 
     # print(listings[0])
+    # print(home_types["APARTMENT"])
+    soup = BeautifulSoup(html_source, "html.parser")
+
+    # listing_types = soup.find_all("span", class_="_1xxanas2", style="color: rgb(118, 118, 118);")
+
+    prices = soup.find_all("span", style="color: rgb(118, 118, 118);")
+    # for i, home_type in enumerate(listing_home_types):
+    #     listing_home_types[i] = home_type.text.split(" ", 1)[1]
+    #
+    # for i, home_type in enumerate(listing_home_types):
+    #     print(home_type)
+    # print(soup.select("span._1p3joamp > span._krjbj")[0].parent.text)
+    prices = soup.select("span._1p3joamp > span._krjbj")
+    for i, price in enumerate(prices):
+        if len(price.parent.text.split("$", 2)) == 2:
+            prices[i] = price.parent.text.split("$", 2)[1]
+        elif len(price.parent.text.split("$", 2)) == 3:
+            prices[i] = price.parent.text.split("$", 2)[2]
+        else:
+            raise ValueError("There should only be previous and discounted price or regular price")
+        print(prices[i])
+
