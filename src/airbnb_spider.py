@@ -30,7 +30,7 @@ from dotenv import load_dotenv
 
 from utils import write_config, read_config
 
-from scrape_page import scrape, Listing
+# from scrape_page import scrape, Listing
 
 logger = logging.getLogger(__name__)
 

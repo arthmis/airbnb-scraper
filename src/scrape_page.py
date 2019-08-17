@@ -75,22 +75,20 @@ def scrape(html):
         else:
             superhosts[i] = False
 
+    # get an image url to display image of listing on slack
     image_urls = soup.find_all("div", attrs={"class": "_1i2fr3fi", "role": "img"})
     for i, url in enumerate(image_urls):
         image_urls[i] = url["style"].split('"')[1]
 
+    # get home types for the listings
     listing_home_types = soup.find_all("span", style="color: rgb(118, 118, 118);")
     for i, home_type in enumerate(listing_home_types):
         listing_home_types[i] = home_type.text.split(" ", 1)[1]
 
-    prices = soup.select("span._1p3joamp > span._krjbj")
+    # gets prices for the listings
+    prices = soup.select("span._j2qalb2 > span._j2qalb2 > span._krjbj")
     for i, price in enumerate(prices):
-        if len(price.parent.text.split("$", 2)) == 2:
-            prices[i] = price.parent.text.split("$", 2)[1]
-        elif len(price.parent.text.split("$", 2)) == 3:
-            prices[i] = price.parent.text.split("$", 2)[2]
-        else:
-            raise ValueError("There should only be previous and discounted price or regular price")
+        price[i] = price.parent.text.split("$", 1)[1]
 
     listings = []
     for title, url, superhost, image_url, home_type in zip(
@@ -111,9 +109,10 @@ def get_page(link):
     time.sleep(15)
     return browser.page_source
 
-
+from airbnb_spider import crawl_airbnb
 if __name__ == "__main__":
     html_source = open("first_type_of_results.html")
+    # html_source = crawl_airbnb()
     # html_source = open("second_type_results.html")
 
     # listings = scrape(html_source.read())
@@ -132,13 +131,8 @@ if __name__ == "__main__":
     # for i, home_type in enumerate(listing_home_types):
     #     print(home_type)
     # print(soup.select("span._1p3joamp > span._krjbj")[0].parent.text)
-    prices = soup.select("span._1p3joamp > span._krjbj")
+    # prices = soup.select("span._1p3joamp > span._krjbj")
+    prices = soup.select("span._j2qalb2 > span._j2qalb2 > span._krjbj")
     for i, price in enumerate(prices):
-        if len(price.parent.text.split("$", 2)) == 2:
-            prices[i] = price.parent.text.split("$", 2)[1]
-        elif len(price.parent.text.split("$", 2)) == 3:
-            prices[i] = price.parent.text.split("$", 2)[2]
-        else:
-            raise ValueError("There should only be previous and discounted price or regular price")
-        print(prices[i])
+        price[i] = price.parent.text.split("$", 1)[1]
 
