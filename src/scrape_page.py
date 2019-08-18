@@ -93,16 +93,27 @@ def scrape(html):
     for i, review_count in enumerate(review_counts):
         review_counts[i] = review_count.text
 
+    # gets the ratings for each listing
+    ratings = soup.find_all("span", class_="_rs3rozr", role="img", style="width: 50px;")
+    if len(ratings) == 0:
+        ratings = soup.find_all("div", class_="_10qgzd5i", role="img")
+    for i, rating in enumerate(ratings):
+        if rating['aria-label'] == "":
+            ratings[i] = 0.0
+        else:
+            ratings[i] = float(ratings[i]['aria-label'].split(" ", 2)[1])
+
     listings = []
     for title, url, image_url, home_type, review_count, price, rating in zip(
         titles, listing_urls, image_urls, home_types, review_counts, prices, ratings 
     ):
         # append only those that are not guess type listing 
-        # if less 
         new_listing = Listing(title, url, image_url, home_type, rating, price, review_count)
-        if "guest" in listing.home_type:
+        if "guest" in new_listing.home_type.lower():
             continue
-        elif review_count < 50:
+        elif new_listing.review_count < 50:
+            continue
+        elif new_listing.rating < 4.8:
             continue
 
         listings.append(new_listing)
@@ -122,7 +133,7 @@ def get_page(link):
 from airbnb_spider import crawl_airbnb
 if __name__ == "__main__":
     html_source = open("first_type_of_results.html")
-    html_source = crawl_airbnb()
+    # html_source = crawl_airbnb()
     # html_source = open("second_type_results.html")
 
     # listings = scrape(html_source.read())
@@ -131,6 +142,12 @@ if __name__ == "__main__":
     # print(listings[0])
     # print(home_types["APARTMENT"])
     soup = BeautifulSoup(html_source, "html.parser")
+    # options = Options()
+    # browser = Firefox(executable_path="geckodriver", options=options)
+    # browser.implicitly_wait(30)
+    # wait = WebDriverWait(browser, timeout=15)
+    # actions = ActionChains(browser)
+    # browser.get("https://www.airbnb.com/")
 
     # listing_home_types = soup.find_all("span", style="color: rgb(118, 118, 118);")
     # for i, home_type in enumerate(listing_home_types):
@@ -142,8 +159,18 @@ if __name__ == "__main__":
         # print(price.parent.text.split("$", 1)[1])
         # price[i] = price.parent.text.split("$", 1)[1]
 
-    review_counts = soup.select("span._1gvnvab > span._j2qalb2")
-    for i, review_count in enumerate(review_counts):
-        review_counts[i] = review_count.text
+    # review_counts = soup.select("span._1gvnvab > span._j2qalb2")
+    # for i, review_count in enumerate(review_counts):
+    #     review_counts[i] = review_count.text
         # print(review_count.text)
+    ratings = soup.find_all("span", class_="_rs3rozr", role="img", style="width: 50px;")
+    if len(ratings) == 0:
+        ratings = soup.find_all("div", class_="_10qgzd5i", role="img")
+    for i, rating in enumerate(ratings):
+        # print(rating['aria-label'])
+        if rating['aria-label'] == "":
+            ratings[i] = 0.0
+        else:
+            ratings[i] = float(ratings[i]['aria-label'].split(" ", 2)[1])
+        # print(ratings[i])
 
