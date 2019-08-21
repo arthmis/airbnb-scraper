@@ -29,6 +29,7 @@ from tenacity import (
 from dotenv import load_dotenv
 
 from utils import write_config, read_config
+from scrape_page import scrape, Listing
 
 # from scrape_page import scrape, Listing
 
@@ -51,7 +52,7 @@ def crawl_airbnb():
     except FileNotFoundError:
         logger.exception("", exc_info=True)
         raise
-    except Exception as error:
+    except Exception:
         logger.exception("", exc_info=True)
         raise
     options = Options()
@@ -371,10 +372,37 @@ def crawl_airbnb():
     page_source = browser.page_source
     logger.debug("Retrieved page source.")
 
-    # browser.quit()
+    listings = []
+    # loops until it goes through 5 pages of results or find 15 listings
+    # that match the listing criteria
+    for i in range(5):
+        new_listings = scrape(browser.page_source)
+        logger.debug(f"Retrieved page {i} source.")
+
+        for i, _ in enumerate(new_listings):
+            listings.append(new_listings[i])
+            if len(listings) == 15:
+                break
+
+        if len(listings) == 15:
+            break
+
+        next_page_selector = "li._r4n1gzb > a._1ip5u88"
+        try:
+            next_page_arrow = browser.find_element_by_css_selector(next_page_selector)
+        except NoSuchElementException:
+            logger.debug("No more pages of listing results")
+            break
+        else:
+            next_page_arrow.click()
+            logger.debug("Found and clicked next page arrow")
+
+        time.sleep(10)
+
+    browser.quit()
     logger.debug("Exited browser.")
 
-    return page_source
+    return listings
 
 def crawl_link():
     link = "https://www.airbnb.com/s/New-Orleans--LA--United-States/homes?refinement_paths%5B%5D=%2Fhomes&checkin=2019-08-23&checkout=2019-08-27&price_min=96&price_max=185&room_types%5B%5D=Entire%20home%2Fapt&query=New%20Orleans%2C%20LA%2C%20United%20States&place_id=ChIJZYIRslSkIIYRtNMiXuhbBts&search_type=filter_change"
