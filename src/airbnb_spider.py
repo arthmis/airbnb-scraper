@@ -45,7 +45,6 @@ GECKODRIVER = os.environ["GECKODRIVER"]
     after=after_log(logger, logging.DEBUG),
     retry=retry_if_exception_type(NoSuchElementException),
 )
-# @retry(wait=wait_exponential(multiplier=1, min=4, max=30), stop=stop_after_attempt(5))
 def crawl_airbnb():
     try:
         config = read_config("config.toml")

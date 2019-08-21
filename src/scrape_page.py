@@ -79,9 +79,9 @@ def scrape(html):
         image_urls[i] = url["style"].split('"')[1]
 
     # get home types for the listings
-    listing_home_types = soup.find_all("span", style="color: rgb(118, 118, 118);")
-    for i, home_type in enumerate(listing_home_types):
-        listing_home_types[i] = home_type.text.split(" ", 1)[1]
+    home_types = soup.find_all("span", style="color: rgb(118, 118, 118);")
+    for i, home_type in enumerate(home_types):
+        home_types[i] = home_type.text.split(" ", 1)[1]
 
     # gets prices for the listings
     prices = soup.select("span._j2qalb2 > span._j2qalb2 > span._krjbj")
@@ -130,7 +130,7 @@ def get_page(link):
     time.sleep(15)
     return browser.page_source
 
-from airbnb_spider import crawl_airbnb
+# from airbnb_spider import crawl_airbnb
 if __name__ == "__main__":
     html_source = open("first_type_of_results.html")
     # html_source = crawl_airbnb()
