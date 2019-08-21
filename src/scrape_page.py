@@ -50,9 +50,10 @@ def scrape(html):
 
     # gets the number of reviews for each listing
     review_counts = soup.select("span._1gvnvab > span._j2qalb2")
+    if len(review_counts) == 0:
+        review_counts = soup.select("div._s4ipbau > span._1plk0jz1")
     for i, review_count in enumerate(review_counts):
-        print(review_counts[i].text)
-        review_counts[i] = int(review_count.text)
+        review_counts[i] = int(review_count.text.replace('(', '').replace(')', ''))
 
     # gets the ratings for each listing
     ratings = soup.find_all("span", class_="_rs3rozr", role="img", style="width: 50px;")
