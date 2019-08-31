@@ -78,12 +78,26 @@ def scrape(html):
         elif new_listing.rating < 4.8:
             continue
 
+        price_max = 3600
+        review_count_max = 2000
+        rating_max = 0.2
+        price_rating = 1 - price / price_max * 0.55
+        review_rating = review_count / review_count_max * 0.35
+        rating_after_weight = (5.0 - rating) / 0.2 * 0.1
+        print(f"price rating: {price rating}")
+        print(f"review rating {review_rating}")
+        print(f"rating after weight: {rating_after_weight}")
+        print()
         listings.append(new_listing)
 
-    # for listing in listings:
-    #     print(listing)
-
     return listings
+
+# 200 - 3600 price
+# 50 - 2000 review count
+# 4.8 - 5 rating
+# price formula ( 1 - price / price max * 0.55 )
+# review count formula ( review count / review count max * 0.35 )
+# rating formula ( (5.0 - rating) / 0.2 * 0.1 ) 
 
 
 def get_page(link):
