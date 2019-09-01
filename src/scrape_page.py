@@ -6,7 +6,7 @@ from selenium.webdriver.firefox.options import Options
 import time
 
 class Listing:
-    def __init__(self, title, url, image_url, home_type, rating, price, review_count):
+    def __init__(self, title, url, image_url, home_type, rating, price, review_count, weighted_rating):
         self.title = title
         self.url = url
         self.image_url = image_url
@@ -14,9 +14,10 @@ class Listing:
         self.rating = rating
         self.price = price
         self.home_type = home_type
+        self.weighted_rating = weighted_rating
 
     def __str__(self):
-        return f"title: {self.title}\nurl: {self.url}\nimage url: {self.image_url}\nreview count: {self.review_count}\nrating: {self.rating}\nprice: {self.price}\nhome type: {self.home_type}"
+        return f"title: {self.title}\nurl: {self.url}\nimage url: {self.image_url}\nreview count: {self.review_count}\nrating: {self.rating}\nprice: {self.price}\nhome type: {self.home_type}\nweighted rating: {self.weighted_rating}"
 
 def scrape(html):
     soup = BeautifulSoup(html, "html.parser")
@@ -69,25 +70,24 @@ def scrape(html):
     for title, url, image_url, home_type, review_count, price, rating in zip(
         titles, listing_urls, image_urls, home_types, review_counts, prices, ratings
     ):
-        new_listing = Listing(title, url, image_url, home_type, rating, price, review_count)
-        # append only those that are not guess type listing 
-        if "guest" in new_listing.home_type.lower():
+        # append only those that are not guest type listing 
+        if "guest" in home_type.lower():
             continue
-        elif new_listing.review_count < 50:
+        elif review_count < 50:
             continue
-        elif new_listing.rating < 4.8:
+        elif rating < 4.8:
             continue
 
         price_max = 3600
-        review_count_max = 2000
-        rating_max = 0.2
-        price_rating = 1 - price / price_max * 0.55
+        review_count_max = 500
+        rating_max = 5.0 
+        price_rating = (1 - price / price_max) * 0.55
         review_rating = review_count / review_count_max * 0.35
-        rating_after_weight = (5.0 - rating) / 0.2 * 0.1
-        print(f"price rating: {price rating}")
-        print(f"review rating {review_rating}")
-        print(f"rating after weight: {rating_after_weight}")
-        print()
+        rating_after_weight = rating / rating_max * 0.1
+        weighted_rating = round(10 * (price_rating + review_rating + rating_after_weight), 2)
+
+        new_listing = Listing(title, url, image_url, home_type, rating, price, review_count, weighted_rating)
+
         listings.append(new_listing)
 
     return listings
