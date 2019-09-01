@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 # console_handler.setFormatter(formatter)
 # logger.addHandler(console_handler)
 
+MAX_ROWS = 15
 
 def create_connection(database):
     logger.info(f"Attempting to connect to: {database}")
@@ -32,13 +33,17 @@ def create_connection(database):
 
 def create_table(connection):
     cursor = connection.cursor()
-    sql = f"""
+    sql = """
     CREATE TABLE IF NOT EXISTS listings (
         id integer PRIMARY KEY,
         title text NOT NULL,
         url text NOT NULL,
-        superhost boolean NOT NULL DEFAULT 'f',
-        image_url text NOT NULL
+        image_url text NOT NULL,
+        home_type text NOT NULL,
+        price integer NOT NULL,
+        review_count integer NOT NULL,
+        rating real NOT NULL,
+        weighted_rating real NOT NULL
     )
     """
     try:
@@ -48,24 +53,39 @@ def create_table(connection):
         logger.exception("Syntax error with create table sql:", exc_info=True)
 
 
+def delete_row(conn, id):
+    statement = "DELETE FROM listings WHERE id=?"
+    cursor = conn.cursor()
+    try:
+        cursor.execute(statement, (id,))
+    except Error:
+        logger.exception(f"Failed to delete row with id: {id}", exc_info=True)
+        raise
+    else:
+        logger.debug(f"Deleted row with id: {id}")
+        return id
+
 # will add listing if it isn't there otherwise
 # returns the rowid of the listing if its a duplicate
 def add_listing(connection, listing):
     statement = """
-        INSERT INTO listings (title, url, superhost, image_url)
-        VALUES(?,?,?,?)
+        INSERT INTO listings (title, url, image_url, home_type, price, review_count, rating, weighted_rating)
+        VALUES(?,?,?,?,?,?,?,?)
     """
     duplicate = find_listing_by_url(connection, listing.url)
     if duplicate is None:
         cursor = connection.cursor()
+    num_rows = cursor.execute("SELECT Count(*) FROM listings").fetchone()[0] 
+    if num_rows < MAX_ROWS:
+        if duplicate is None:
         try:
             cursor.execute(
                 statement,
-                (listing.title, listing.url, listing.superhost, listing.image_url),
+                    (listing.title, listing.url, listing.image_url, listing.home_type, listing.price, listing.review_count, listing.rating, listing.weighted_rating),
             )
-        except Error as error:
+            except Error:
             logger.exception(
-                f"Failed to add listing to database with error: {error}.", exc_info=True
+                    f"Failed to add listing to database with error: ", exc_info=True
             )
             raise
         else:
@@ -75,6 +95,18 @@ def add_listing(connection, listing):
         return cursor.lastrowid
     else:
         return duplicate[0]
+    elif num_rows == MAX_ROWS:
+        lowest_weighted_rating_row = find_lowest_weight_rated(connection)
+        lowest_weighted_rating = lowest_weighted_rating_row[8]
+        id = lowest_weighted_rating_row[0]
+        if lowest_weighted_rating < listing.weighted_rating:
+            try:
+                delete_row(connection, id)
+            except Error:
+                raise
+            else:
+                return add_listing(connection, listing)
+
 
 
 # Urls are always unique so I can use this to ensure
@@ -97,12 +129,36 @@ def find_listing_by_url(connection, url):
             logger.info("Successfully found url.")
             return listing
 
+def find_lowest_weight_rated(connection):
+    cursor = connection.cursor()
+    find_min_weight_rated = """
+        SELECT 
+            * 
+        FROM 
+            listings 
+        WHERE 
+            weighted_rating = (
+                SELECT 
+                    min(weighted_rating) 
+                FROM 
+                    listings
+            )
+    """
+    try:
+        cursor.execute(find_min_weight_rated)
+    except Error:
+        logger.exception("", exc_info=True)
+        raise
+    else:
+        listing = cursor.fetchone()
+        return listing
+
 
 def find_all_listings(connection, limit=5):
     cursor = connection.cursor()
     try:
         cursor.execute("SELECT * FROM listings LIMIT ?", (limit,))
-    except Error as error:
+    except Error:
         traceback.print_exc()
         raise
     else:
