@@ -152,12 +152,12 @@ def format_listing(listing):
 def show_dates(data):
     message = ""
     try:
-        config = read_toml(config_path)
+        config = read_config(config_path)
     except FileNotFoundError:
         message = (
             f"There was a problem. The configuration file could not be found or read."
         )
-    except Exception as error:
+    except Exception:
         logger.exception("", exc_info=True)
     else:
         message = f'The current start date is: {config["start_date"]}\nThe current end date is: {config["end_date"]}'
@@ -173,7 +173,7 @@ def show_dates(data):
 def change_start_date(data):
     message = ""
     try:
-        config = read_toml(config_path)
+        config = read_config(config_path)
     except FileNotFoundError:
         message = f"There was a problem. The configuration file `{config_path}`, could not be found or read."
         logger.exception("", exc_info=True)
@@ -186,7 +186,7 @@ def change_start_date(data):
             new_date = date.fromisoformat(new_start_date)
             config["start_date"] = new_start_date
             new_config = toml.dumps(config)
-            write_toml(new_config, config_path)
+            write_config(new_config, config_path)
             message = f"Date changed to {new_start_date}"
             logger.info(f"Start date changed to {new_start_date}")
         except ValueError as error:
@@ -204,11 +204,11 @@ def change_start_date(data):
 def change_end_date(data):
     message = ""
     try:
-        config = read_toml(config_path)
+        config = read_config(config_path)
     except FileNotFoundError:
         message = f"There was a problem. The configuration file `{config_path}`, could not be found or read."
         logger.exception("", exc_info=True)
-    except Exception as error:
+    except Exception:
         message = f"There was a problem with configuration file: `{config_path}`"
         logger.exception("", exc_info=True)
     else:
@@ -217,10 +217,10 @@ def change_end_date(data):
             new_date = date.fromisoformat(new_end_date)
             config["end_date"] = new_end_date
             new_config = toml.dumps(config)
-            write_toml(new_config, config_path)
+            write_config(new_config, config_path)
             message = f"Date changed to {new_end_date}"
         # need to write better error message for this(date is out of range or wrong formatting)
-        except ValueError as error:
+        except ValueError:
             logger.info("User inputted {new_end_date} for end date. ")
             logger.exception("", exc_info=True)
             message = "Format should be yyyy-mm-dd, i.e. 2019-02-03"
@@ -234,14 +234,14 @@ def change_end_date(data):
 
 def change_location(data):
     try:
-        config = read_toml(config_path)
-    except Exception as error:
+        config = read_config(config_path)
+    except Exception:
         logger.exception("", exc_info=True)
         post_config_not_found_error()
     else:
         new_location = data["text"].split("location")[1].strip()
         config["location"] = new_location
-        write_toml(toml.dumps(config), config_path)
+        write_config(toml.dumps(config), config_path)
         logger.info(f"Changed location to: {new_location}")
         response = slack_client.chat_postMessage(
             channel="#general", text=f"Location changed to {new_location}"
@@ -266,8 +266,8 @@ def post_config_not_found_error():
 def change_prices(data):
     message = ""
     try:
-        config = read_toml(config_path)
-    except Exception as error:
+        config = read_config(config_path)
+    except Exception:
         logger.exception("", exc_info=True)
         post_config_not_found_error()
     # else:
@@ -276,9 +276,8 @@ def change_prices(data):
     try:
         new_min_price = prices.split()[0]
         new_max_price = prices.split()[1]
-    except IndexError as error:
-        log.info(f"While handling change prices event {error}")
-        log.exception("", exc_info=True)
+    except IndexError:
+        logger.exception("", exc_info=True)
         response = slack_client.chat_postMessage(
             channel="#general",
             text="The usage for change prices is:\nchange prices [new minimum price] [new maximum price]",
@@ -294,7 +293,7 @@ def change_prices(data):
         new_min_price = float(new_min_price)
         new_min_price = int(new_min_price)
     except ValueError:
-        log.exception("", exc_info=True)
+        logger.exception("", exc_info=True)
         response = slack_client.chat_postMessage(
             channel="#general",
             text="New minimum price has to be a number: {}".format(new_min_price),
@@ -311,10 +310,10 @@ def change_prices(data):
         new_max_price = float(new_max_price)
         new_max_price = int(new_max_price)
     except ValueError:
-        log.exception("", exc_info=True)
+        logger.exception("", exc_info=True)
         response = slack_client.chat_postMessage(
             channel="#general",
-            text="New maximum price has to be a number: {}".format(new_max_price),
+            text=f"New maximum price has to be a number: {new_max_price}",
         )
         try:
             assert response["ok"]
@@ -345,14 +344,14 @@ def change_prices(data):
 
     config["max_price"] = new_max_price
     config["min_price"] = new_min_price
-    write_toml(toml.dumps(config), config_path)
-    log.info("Changed min and max price to: ${new_min_price} ${new_max_price}")
+    write_config(toml.dumps(config), config_path)
+    logger.info("Changed min and max price to: ${new_min_price} ${new_max_price}")
 
 
 def show_price_range():
     try:
-        config = read_toml(config_path)
-    except Exception as error:
+        config = read_config(config_path)
+    except Exception:
         logger.exception("", exc_info=True)
         post_config_not_found_error()
     else:
@@ -390,12 +389,11 @@ def activate_crawler():
             channel="#general",
             text="Failed to crawl airbnb for new listings because there was an error reading configuration.",
         )
-    except Exception as error:
-        print(error)
-        logger.info(error)
+    except Exception:
+        logger.exception("", exc_info=True)
         response = slack_client.chat_postMessage(
             channel="#general",
-            text="Failed to crawl airbnb for new listings because there was an error reading configuration.",
+            text="Failed to crawl airbnb for new listings because there was an unknown error.",
         )
         return
     else:
@@ -421,6 +419,7 @@ def help_prompt():
         "\nchange prices [new minimum price] [new maximum price]: Changes price range\n"
     )
     options += "\nshow prices: Show price range\n"
+    options += "\ncrawl airbnb: starts the crawler to scrape for new listings\n"
 
     response = slack_client.chat_postMessage(channel="#general", text=options)
     try:
